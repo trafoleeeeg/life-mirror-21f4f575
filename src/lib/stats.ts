@@ -57,13 +57,15 @@ const TAG_MAP: Record<string, (keyof GlyphState)[]> = {
 export const computeStatsFromCheckins = (
   checkins: Checkin[],
   base: GlyphState = defaultGlyphState,
+  pings: MoodPing[] = [],
 ): GlyphState => {
-  if (!checkins.length) return base;
+  if (!checkins.length && !pings.length) return base;
 
   // last 14 days window for momentum
   const cutoff = Date.now() - 14 * 24 * 3600 * 1000;
   const recent = checkins.filter((c) => new Date(c.created_at).getTime() >= cutoff);
-  if (!recent.length) return base;
+  const recentPings = pings.filter((p) => new Date(p.created_at).getTime() >= cutoff);
+  if (!recent.length && !recentPings.length) return base;
 
   // averages
   const avg = (arr: (number | null)[]) => {
@@ -75,10 +77,15 @@ export const computeStatsFromCheckins = (
   const moodAvg = avg(recent.map((c) => c.mood));
   const sleepAvg = avg(recent.map((c) => (c.sleep_hours != null ? Number(c.sleep_hours) : null)));
 
+  // pings: mood is 1..10 → scale to 0..100
+  const pingMoodAvg = recentPings.length
+    ? (recentPings.reduce((s, p) => s + p.mood, 0) / recentPings.length) * 10
+    : null;
+
   // signals
   const next: GlyphState = { ...base };
 
-  // body: sleep (0-12) + energy (0-100). 7-9h sleep is ideal -> 75; <5h -> 30
+  // body: sleep + energy
   if (sleepAvg != null || energyAvg != null) {
     const sleepScore = sleepAvg != null
       ? clamp(50 + (sleepAvg - 7) * 8 + (sleepAvg >= 7 && sleepAvg <= 9 ? 10 : 0))
@@ -87,18 +94,32 @@ export const computeStatsFromCheckins = (
     next.body = clamp((sleepScore + energyScore) / 2);
   }
 
-  // emotions: mood
-  if (moodAvg != null) next.emotions = clamp(moodAvg);
+  // emotions: blend checkin mood (70%) + ping mood (30%)
+  if (moodAvg != null && pingMoodAvg != null) {
+    next.emotions = clamp(moodAvg * 0.7 + pingMoodAvg * 0.3);
+  } else if (moodAvg != null) {
+    next.emotions = clamp(moodAvg);
+  } else if (pingMoodAvg != null) {
+    // pings only — softer pull toward base
+    next.emotions = clamp(base.emotions * 0.5 + pingMoodAvg * 0.5);
+  }
 
-  // mind: balance of mood/energy + intent presence
+  // mind: balance of mood/energy + intent presence + ping consistency
   const intents = recent.filter((c) => c.intent && c.intent.trim().length > 4).length;
+  const pingBonus = Math.min(15, recentPings.length * 1.5);
   next.mind = clamp(
-    (moodAvg ?? base.mind) * 0.4 +
-      (energyAvg ?? base.mind) * 0.4 +
-      Math.min(20, intents * 4),
+    (moodAvg ?? pingMoodAvg ?? base.mind) * 0.35 +
+      (energyAvg ?? base.mind) * 0.35 +
+      Math.min(20, intents * 4) +
+      pingBonus,
   );
 
-  // tag-driven nudges
+  // body micro-signal from pings (active vs sedentary feel via mood proxy)
+  if (pingMoodAvg != null) {
+    next.body = clamp(next.body * 0.85 + pingMoodAvg * 0.15);
+  }
+
+  // tag-driven nudges from checkins
   const counts: Partial<Record<keyof GlyphState, number>> = {};
   for (const c of recent) {
     for (const tag of c.tags || []) {
@@ -107,16 +128,23 @@ export const computeStatsFromCheckins = (
       for (const t of targets) counts[t] = (counts[t] || 0) + 1;
     }
   }
+  // activity-driven nudges from pings
+  for (const p of recentPings) {
+    for (const a of p.activities || []) {
+      const targets = ACTIVITY_MAP[a.toLowerCase()];
+      if (!targets) continue;
+      for (const t of targets) counts[t] = (counts[t] || 0) + 1;
+    }
+  }
   for (const k of STAT_ORDER) {
     const n = counts[k] || 0;
     if (n > 0) {
-      // attention to a sphere = small uplift
-      next[k] = clamp(next[k] + Math.min(15, n * 3));
+      next[k] = clamp(next[k] + Math.min(15, n * 2));
     }
   }
 
-  // consistency bonus across all spheres
-  const consistency = Math.min(15, recent.length);
+  // consistency bonus
+  const consistency = Math.min(15, recent.length + recentPings.length * 0.3);
   for (const k of STAT_ORDER) next[k] = clamp(next[k] + consistency * 0.3);
 
   return next;
