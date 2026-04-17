@@ -141,11 +141,15 @@ export const SleepCorrelation = ({ days = 60 }: Props) => {
                 : positive
                 ? TrendingUp
                 : TrendingDown;
-              const color = !has || Math.abs(delta) < 0.2
+              // Палитра: ярко-зелёный = заряжает, жёлтый = почти нейтрально, красный = истощает.
+              const adelta = Math.abs(delta);
+              const color = !has
                 ? "--muted-foreground"
+                : adelta < 0.3
+                ? "--stat-meaning"     // жёлтый — нейтраль
                 : positive
-                ? "--stat-body"
-                : "--destructive";
+                ? "--stat-finance"     // зелёный — выше среднего
+                : "--destructive";     // красный — ниже среднего
               return (
                 <div key={b.key} className="grid grid-cols-[60px_1fr_72px] items-center gap-3">
                   <span className="mono text-xs text-muted-foreground">{b.label}</span>
@@ -188,7 +192,7 @@ export const SleepCorrelation = ({ days = 60 }: Props) => {
           </div>
 
           <p className="text-[11px] text-muted-foreground mt-4 text-center">
-            Зелёный столбец = настроение выше среднего, красный = ниже. Цифра справа — отклонение от твоего среднего ({data.baseline.toFixed(1)}).
+            🟢 выше среднего · 🟡 почти нейтрально · 🔴 ниже среднего. Цифра справа — отклонение от твоего среднего ({data.baseline.toFixed(1)}).
           </p>
         </>
       )}
