@@ -21,7 +21,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Camera, Download, LogOut, Trash2 } from "lucide-react";
+import { Bell, Camera, Download, LogOut, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type Tone = "soft" | "hard" | "socratic";
 type Lang = "ru" | "en";
@@ -259,7 +260,23 @@ const Settings = () => {
         </Card>
 
         <Card className="ios-card p-5 space-y-3">
-          <h3 className="font-semibold">Аккаунт</h3>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
+                <Bell className="size-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Push-уведомления</h3>
+                <p className="text-sm text-muted-foreground">
+                  Микро-чек настроения по гибкому расписанию.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="rounded-full shrink-0">
+              <Link to="/app/notifications">Настроить</Link>
+            </Button>
+          </div>
+        </Card>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={exportData} disabled={exporting} className="rounded-full">
