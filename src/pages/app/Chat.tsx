@@ -426,7 +426,6 @@ const Chat = () => {
         eyebrow="ai · с памятью"
         title="Психолог"
         description="Говори свободно. AI помнит контекст и может обновлять твои статы."
-        meta={<DossierIndicator onOpen={() => setDossierOpen(true)} />}
       >
         <div className="flex flex-wrap gap-1">
           <Button size="sm" variant="outline" onClick={() => setDossierOpen(true)} className="rounded-full">
