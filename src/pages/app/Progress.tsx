@@ -7,7 +7,10 @@ import { STAT_META, STAT_ORDER, StatKey, defaultGlyphState } from "@/components/
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -16,7 +19,24 @@ import {
   YAxis,
   Legend,
 } from "recharts";
-import { TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { TrendingDown, TrendingUp, Minus, Flame, Trophy, Lock } from "lucide-react";
+
+interface Achievement {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  emoji: string;
+  category: string;
+}
+interface UserAch {
+  achievement_id: string;
+  unlocked_at: string;
+}
+interface PingRow {
+  mood: number;
+  created_at: string;
+}
 
 type Range = 7 | 30 | 90;
 
