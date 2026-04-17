@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-dilemma]
 verify_jwt = false
+
+[functions.build-dossier]
+verify_jwt = false

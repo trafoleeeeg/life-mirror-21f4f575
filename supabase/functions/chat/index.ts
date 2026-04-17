@@ -148,18 +148,30 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: true })
       .limit(40);
 
-    // Latest stats for tool context
-    const { data: latestStats } = await admin
-      .from("glyph_stats")
-      .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
-      .eq("user_id", userId)
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Latest stats + dossier for context
+    const [{ data: latestStats }, { data: dossier }] = await Promise.all([
+      admin.from("glyph_stats")
+        .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
+        .eq("user_id", userId).order("recorded_at", { ascending: false }).limit(1).maybeSingle(),
+      admin.from("user_dossier")
+        .select("summary, patterns, themes, triggers, resources, values_list, goals, relationships, notes")
+        .eq("user_id", userId).maybeSingle(),
+    ]);
+
+    let dossierBlock = "";
+    if (dossier && (dossier.summary || (dossier.patterns as unknown[])?.length)) {
+      const compact = (arr: unknown) => Array.isArray(arr)
+        ? (arr as { title: string; detail?: string }[]).slice(0, 5)
+            .map((x) => `• ${x.title}${x.detail ? ` — ${x.detail}` : ""}`).join("\n")
+        : "";
+      dossierBlock = `\n\nЛИЧНОЕ ДЕЛО ПОЛЬЗОВАТЕЛЯ (используй как контекст, не цитируй дословно):
+${dossier.summary ? `Кратко: ${dossier.summary}\n` : ""}${compact(dossier.patterns) ? `Паттерны:\n${compact(dossier.patterns)}\n` : ""}${compact(dossier.triggers) ? `Триггеры:\n${compact(dossier.triggers)}\n` : ""}${compact(dossier.resources) ? `Ресурсы:\n${compact(dossier.resources)}\n` : ""}${compact(dossier.values_list) ? `Ценности:\n${compact(dossier.values_list)}\n` : ""}${compact(dossier.goals) ? `Цели:\n${compact(dossier.goals)}\n` : ""}${compact(dossier.relationships) ? `Близкие:\n${compact(dossier.relationships)}\n` : ""}${dossier.notes ? `Заметки терапевта: ${dossier.notes}` : ""}`;
+    }
 
     const systemContent =
       (SYSTEM_PROMPTS[tone] || SYSTEM_PROMPTS.soft) +
-      `\n\nТекущие статы пользователя (0-100): ${JSON.stringify(latestStats || {})}.`;
+      `\n\nТекущие статы пользователя (0-100): ${JSON.stringify(latestStats || {})}.` +
+      dossierBlock;
 
     const aiMessages = [
       { role: "system", content: systemContent },
