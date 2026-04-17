@@ -307,7 +307,6 @@ const Feed = () => {
     await loadComments(postId);
     // Счётчик обновится через realtime
   };
-  };
 
   return (
     <>
