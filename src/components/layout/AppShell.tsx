@@ -18,18 +18,19 @@ import { useIsAdmin } from "@/lib/useIsAdmin";
 /** Primary tabs shown on mobile bottom bar (4 max). */
 const primary = [
   { to: "/app", label: "Зеркало", icon: LineChart, end: true },
+  { to: "/app/feed", label: "Лента", icon: Rss },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
-  { to: "/app/graph", label: "Граф", icon: Network },
-  { to: "/app/settings", label: "Я", icon: User },
+  { to: "/app/me", label: "Профиль", icon: User },
 ];
 
 /** Full nav shown in desktop sidebar. */
 const sidebarNav = [
   { to: "/app", label: "Зеркало", icon: LineChart, end: true },
+  { to: "/app/feed", label: "Лента", icon: Rss },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
+  { to: "/app/me", label: "Профиль", icon: User },
   { to: "/app/graph", label: "Граф", icon: Network },
   { to: "/app/sleep", label: "Сон", icon: Moon },
-  { to: "/app/feed", label: "Лента", icon: Rss },
   { to: "/app/dms", label: "Сообщения", icon: Mail },
   { to: "/app/learn", label: "Знания", icon: BookOpen },
   { to: "/app/notifications", label: "Уведомления", icon: Bell },
