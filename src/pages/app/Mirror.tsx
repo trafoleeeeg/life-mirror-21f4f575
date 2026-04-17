@@ -65,7 +65,10 @@ const Mirror = () => {
   useEffect(() => { localStorage.setItem(ORDER_KEY, JSON.stringify(order)); }, [order]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const [activeId, setActiveId] = useState<SectionId | null>(null);
+  const onDragStart = (e: DragStartEvent) => setActiveId(e.active.id as SectionId);
   const onDragEnd = (e: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     setOrder((prev) => {
