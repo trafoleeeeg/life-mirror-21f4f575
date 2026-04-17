@@ -30,10 +30,10 @@ export const BalanceWheel = ({
   className = "",
   showLabels = true,
 }: Props) => {
-  const VIEW = 480; // фиксированный viewBox; size — масштаб
+  const VIEW = 520; // фиксированный viewBox; size — масштаб
   const cx = VIEW / 2;
   const cy = VIEW / 2;
-  const labelPad = showLabels ? 96 : 12;
+  const labelPad = showLabels ? 116 : 12;
   const outerR = VIEW / 2 - labelPad;
   const innerR = outerR * 0.18;
   const sectors = Math.max(1, spheres.length);
@@ -94,7 +94,21 @@ export const BalanceWheel = ({
     [rings, outerR, innerR],
   );
 
-  const truncate = (s: string, n = 10) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  // Перенос лейбла на ≤2 строки. Сначала пробуем по пробелу; если слово слишком длинное — режем посимвольно.
+  const wrapLabel = (s: string, maxPerLine = 11): string[] => {
+    if (s.length <= maxPerLine) return [s];
+    const words = s.split(/\s+/);
+    if (words.length > 1) {
+      let l1 = "", l2 = "";
+      for (const w of words) {
+        if ((l1 + " " + w).trim().length <= maxPerLine && !l2) l1 = (l1 ? l1 + " " : "") + w;
+        else l2 = (l2 ? l2 + " " : "") + w;
+      }
+      if (l2.length > maxPerLine) l2 = l2.slice(0, maxPerLine - 1) + "…";
+      return [l1, l2];
+    }
+    return [s.slice(0, maxPerLine), s.slice(maxPerLine, maxPerLine * 2 - 1) + (s.length > maxPerLine * 2 - 1 ? "…" : "")];
+  };
 
   return (
     <svg
@@ -159,20 +173,37 @@ export const BalanceWheel = ({
         const sinA = Math.sin(a.midAngle);
         const anchor: "start" | "middle" | "end" =
           cosA < -0.2 ? "end" : cosA > 0.2 ? "start" : "middle";
-        // на «верхушке/днище» сдвигаем подпись вертикально, чтобы не липла к окружности
-        const dy = sinA < -0.7 ? -10 : sinA > 0.7 ? 14 : 0;
+        const dy = sinA < -0.7 ? -8 : sinA > 0.7 ? 12 : 0;
         const labelY = a.ly + dy;
+        const lines = wrapLabel(a.sphere.label, 11);
+        const lineH = 13;
+        const totalH = lines.length * lineH;
+        const startY = labelY - totalH / 2;
         return (
           <g key={`lbl-${a.sphere.id}`}>
-            <text x={a.lx} y={labelY - 6} textAnchor={anchor} dominantBaseline="middle"
-              className="fill-foreground" style={{ fontSize: 12, fontWeight: 600 }}>
-              {a.sphere.emoji ? `${a.sphere.emoji} ` : ""}{truncate(a.sphere.label)}
-            </text>
-            <text x={a.lx} y={labelY + 9} textAnchor={anchor} dominantBaseline="middle"
+            {lines.map((ln, idx) => (
+              <text
+                key={idx}
+                x={a.lx}
+                y={startY + idx * lineH}
+                textAnchor={anchor}
+                dominantBaseline="middle"
+                className="fill-foreground"
+                style={{ fontSize: 12, fontWeight: 600 }}
+              >
+                {idx === 0 && a.sphere.emoji ? `${a.sphere.emoji} ` : ""}{ln}
+              </text>
+            ))}
+            <text
+              x={a.lx}
+              y={startY + totalH + 2}
+              textAnchor={anchor}
+              dominantBaseline="middle"
               style={{
                 fontSize: 11, fontFamily: "ui-monospace, monospace",
                 fill: `hsl(var(${a.sphere.tokenVar}))`, fontWeight: 600,
-              }}>
+              }}
+            >
               {Math.round(a.value)}
             </text>
           </g>
