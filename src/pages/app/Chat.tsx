@@ -14,7 +14,9 @@ import {
   Check,
   X,
   Search,
+  FileText,
 } from "lucide-react";
+import { DossierPanel } from "@/components/chat/DossierPanel";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
