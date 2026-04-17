@@ -1,10 +1,17 @@
-// Mirror — unified main page: Today / History / Analytics / Sleep tabs.
+// Mirror — single-screen layout (per ОС-апрель doc):
+// 1) Greeting + quick check-in CTA
+// 2) KPI / Stats compact
+// 3) Activity impact (most important block)
+// 4) Daily breakdown (по дням)
+// 5) Mood trend chart (heatmap-replacement)
+// 6) Sleep correlation
+// 7) Balance wheel
+// 8) Collapsed checkins list (last 3)
+// + Sleep & History as Popup mini-cards
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Plus, History, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,20 +23,24 @@ import { DayDetailCard } from "@/components/mirror/DayDetailCard";
 import { DateRangePicker, presetToRange, type Preset } from "@/components/mirror/DateRangePicker";
 import { MoodTrendChart } from "@/components/mirror/MoodTrendChart";
 import { ActivityImpact } from "@/components/dashboard/ActivityImpact";
-import { SleepTracker } from "@/components/sleep/SleepTracker";
-import { SleepHistory } from "@/components/sleep/SleepHistory";
+import { DailyBreakdown } from "@/components/dashboard/DailyBreakdown";
+import { MoodKpis } from "@/components/dashboard/MoodKpis";
+import { FocusInsights } from "@/components/mirror/FocusInsights";
+import { SleepCorrelation } from "@/components/mirror/SleepCorrelation";
+import { CheckinsList } from "@/components/mirror/CheckinsList";
+import { SleepMiniCard } from "@/components/mirror/SleepMiniCard";
+import { PopupCard } from "@/components/mirror/PopupCard";
 import { seedDemoData } from "@/lib/demoData";
 import type { DateRange } from "react-day-picker";
 
 const Mirror = () => {
   const { user } = useAuth();
-  const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") ?? "today";
   const [name, setName] = useState("");
   const [stats, setStats] = useState<GlyphState>(defaultGlyphState);
   const [todayCount, setTodayCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [seeding, setSeeding] = useState(false);
+  const [showQuick, setShowQuick] = useState(false);
 
   const [day, setDay] = useState<Date>(new Date());
   const [preset, setPreset] = useState<Preset>("30d");
@@ -68,9 +79,12 @@ const Mirror = () => {
     }
   };
 
+  const days = preset === "7d" ? 7 : preset === "30d" ? 30 : preset === "90d" ? 90 : preset === "365d" ? 365 : 30;
+
   return (
-    <div className="space-y-5">
-      <header className="flex items-end justify-between flex-wrap gap-3">
+    <div className="space-y-5 pb-8">
+      {/* 1. Greeting + CTA */}
+      <header className="flex items-end justify-between flex-wrap gap-3 animate-fade-in">
         <div>
           <p className="text-muted-foreground text-sm">Зеркало</p>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -89,63 +103,108 @@ const Mirror = () => {
         </Button>
       </header>
 
-      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
-        <TabsList className="w-full grid grid-cols-4 rounded-full">
-          <TabsTrigger value="today" className="rounded-full">Сегодня</TabsTrigger>
-          <TabsTrigger value="history" className="rounded-full">История</TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-full">Аналитика</TabsTrigger>
-          <TabsTrigger value="sleep" className="rounded-full">Сон</TabsTrigger>
-        </TabsList>
+      {/* Quick check-in CTA */}
+      <Card
+        role="button"
+        tabIndex={0}
+        onClick={() => setShowQuick((v) => !v)}
+        className="ios-card p-4 cursor-pointer hover:border-primary/40 transition-all animate-slide-up"
+        style={{ animationDelay: "60ms", animationFillMode: "both" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-full bg-primary/15 text-primary grid place-items-center shrink-0">
+            <Plus className="size-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Новый чек-ин</p>
+            <p className="text-xs text-muted-foreground">
+              {todayCount > 0 ? `Сегодня: ${todayCount} ${todayCount === 1 ? "запись" : "записей"}` : "Запиши настроение за минуту"}
+            </p>
+          </div>
+        </div>
+      </Card>
+      {showQuick && (
+        <div className="animate-scale-in">
+          <MiniCheckin
+            onSaved={() => {
+              setRefreshKey((k) => k + 1);
+              setShowQuick(false);
+            }}
+          />
+        </div>
+      )}
 
-        {/* TODAY */}
-        <TabsContent value="today" className="space-y-5 mt-5">
+      {/* 2. KPI compact */}
+      <div className="animate-slide-up" style={{ animationDelay: "120ms", animationFillMode: "both" }}>
+        <MoodKpis key={`kpi-${refreshKey}`} />
+      </div>
+
+      {/* Mini-cards row: History + Sleep */}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <PopupCard
+          icon={<History className="size-5" />}
+          title="История"
+          subtitle="Любая дата · детали дня"
+          accentToken="--stat-emotions"
+        >
+          <div className="space-y-4">
+            <DayPicker date={day} onChange={setDay} />
+            <DayDetailCard date={day} key={`${day.toDateString()}-${refreshKey}`} />
+          </div>
+        </PopupCard>
+        <SleepMiniCard refreshKey={refreshKey} onSaved={() => setRefreshKey((k) => k + 1)} />
+      </div>
+
+      {/* 3. Focus + Activity impact */}
+      <div className="animate-slide-up" style={{ animationDelay: "180ms", animationFillMode: "both" }}>
+        <FocusInsights days={7} key={`focus-${refreshKey}`} />
+      </div>
+
+      {/* Range picker — one for analytics block */}
+      <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+        <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          аналитика
+        </p>
+        <DateRangePicker range={range} onChange={setRange} preset={preset} onPresetChange={setPreset} />
+      </div>
+
+      <div className="animate-slide-up" style={{ animationDelay: "220ms", animationFillMode: "both" }}>
+        <ActivityImpact days={days} key={`act-${refreshKey}-${days}`} />
+      </div>
+
+      {/* 4. Daily breakdown */}
+      <div className="animate-slide-up" style={{ animationDelay: "260ms", animationFillMode: "both" }}>
+        <DailyBreakdown days={Math.min(days, 14)} key={`db-${refreshKey}-${days}`} />
+      </div>
+
+      {/* 5. Mood trend (heatmap replacement) */}
+      <div className="animate-slide-up" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
+        <MoodTrendChart range={range} key={`trend-${refreshKey}`} />
+      </div>
+
+      {/* 6. Sleep correlation */}
+      <div className="animate-slide-up" style={{ animationDelay: "340ms", animationFillMode: "both" }}>
+        <SleepCorrelation days={Math.max(days, 30)} key={`corr-${refreshKey}-${days}`} />
+      </div>
+
+      {/* 7. Balance wheel */}
+      <Card
+        className="ios-card p-5 animate-slide-up"
+        style={{ animationDelay: "380ms", animationFillMode: "both" }}
+      >
+        <div className="flex items-center justify-between mb-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            сегодня · {todayCount} {todayCount === 1 ? "запись" : "записей"}
+            колесо баланса
           </p>
-          <MiniCheckin onSaved={() => setRefreshKey((k) => k + 1)} />
-          <Card className="ios-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                колесо баланса
-              </p>
-              <span className="mono text-[10px] text-muted-foreground">
-                по последним чек-инам
-              </span>
-            </div>
-            <div className="flex justify-center">
-              <BalanceWheel state={stats} size={360} />
-            </div>
-          </Card>
-        </TabsContent>
+          <span className="mono text-[10px] text-muted-foreground">по чек-инам</span>
+        </div>
+        <div className="flex justify-center">
+          <BalanceWheel state={stats} size={360} />
+        </div>
+      </Card>
 
-        {/* HISTORY */}
-        <TabsContent value="history" className="space-y-5 mt-5">
-          <DayPicker date={day} onChange={setDay} />
-          <DayDetailCard date={day} key={`${day.toDateString()}-${refreshKey}`} />
-        </TabsContent>
-
-        {/* ANALYTICS */}
-        <TabsContent value="analytics" className="space-y-5 mt-5">
-          <DateRangePicker
-            range={range}
-            onChange={setRange}
-            preset={preset}
-            onPresetChange={setPreset}
-          />
-          <MoodTrendChart range={range} />
-          <ActivityImpact
-            days={
-              preset === "7d" ? 7 : preset === "30d" ? 30 : preset === "90d" ? 90 : preset === "365d" ? 365 : 30
-            }
-          />
-        </TabsContent>
-
-        {/* SLEEP */}
-        <TabsContent value="sleep" className="space-y-5 mt-5">
-          <SleepTracker onSaved={() => setRefreshKey((k) => k + 1)} />
-          <SleepHistory key={refreshKey} />
-        </TabsContent>
-      </Tabs>
+      {/* 8. Today's checkins (collapsed) */}
+      <CheckinsList refreshKey={refreshKey} />
     </div>
   );
 };
