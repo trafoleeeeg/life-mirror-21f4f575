@@ -16,6 +16,7 @@ interface Item {
   detail: string;
 }
 interface Section {
+  slug: string;
   icon: typeof Brain;
   title: string;
   short: string;
