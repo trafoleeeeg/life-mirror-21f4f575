@@ -2,6 +2,32 @@ import { GlyphState, STAT_ORDER, defaultGlyphState } from "@/components/glyph/Gl
 import type { Tables } from "@/integrations/supabase/types";
 
 type Checkin = Tables<"checkins">;
+type MoodPing = Tables<"mood_pings">;
+
+const ACTIVITY_MAP: Record<string, (keyof GlyphState)[]> = {
+  "работа": ["career"],
+  "встреча": ["career", "relationships"],
+  "спорт": ["body"],
+  "тренировка": ["body"],
+  "прогулка": ["body", "emotions"],
+  "сон": ["body"],
+  "семья": ["relationships"],
+  "друзья": ["relationships"],
+  "свидание": ["relationships"],
+  "одиночество": ["relationships", "emotions"],
+  "медитация": ["mind", "emotions"],
+  "чтение": ["mind", "creativity"],
+  "учёба": ["mind", "career"],
+  "учеба": ["mind", "career"],
+  "творчество": ["creativity"],
+  "хобби": ["creativity"],
+  "деньги": ["finance"],
+  "покупки": ["finance"],
+  "тревога": ["emotions", "mind"],
+  "стресс": ["emotions", "body"],
+  "радость": ["emotions"],
+  "благодарность": ["emotions", "meaning"],
+};
 
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
