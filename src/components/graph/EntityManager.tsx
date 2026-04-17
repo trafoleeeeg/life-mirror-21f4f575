@@ -1,5 +1,5 @@
 // Drawer для управления одной сущностью: rename, type, category, pin, hide, merge, delete.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pin, Eye, EyeOff, Trash2, Combine } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DbEntity, EntityType } from "@/types/lifeMap";
+import { useAuth } from "@/lib/auth";
+import { computeEntitySeries, formatDays } from "@/lib/lifeMap";
+import { EntitySparkline } from "@/components/graph/EntitySparkline";
+import type { DbEntity, EntityType, PingRow, CheckinRow } from "@/types/lifeMap";
 import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
 
 interface Props {
