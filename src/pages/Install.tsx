@@ -45,13 +45,13 @@ const Install = () => {
       <Card className="ios-card w-full max-w-md p-8 space-y-6 text-center">
         <img
           src={appIcon}
-          alt="Inner Glyph"
+          alt="Mirr"
           width={96}
           height={96}
           className="mx-auto rounded-3xl shadow-2xl"
         />
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Установить Inner Glyph</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Установить Mirr</h1>
           <p className="text-sm text-muted-foreground">
             Добавь приложение на главный экран — будет работать как нативное.
           </p>
