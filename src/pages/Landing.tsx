@@ -64,8 +64,8 @@ const Landing = () => {
               Создать свой Глиф
               <ArrowRight className="ml-1" />
             </Button>
-            <Button size="lg" variant="secondary" onClick={() => navigate("/auth")} className="rounded-full">
-              Войти
+            <Button size="lg" variant="secondary" onClick={() => navigate("/install")} className="rounded-full">
+              Установить на телефон
             </Button>
           </div>
           <p className="mt-6 mono text-xs text-muted-foreground">
