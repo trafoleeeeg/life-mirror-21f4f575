@@ -77,7 +77,11 @@ export async function seedDemoData(userId: string) {
 
   // 1) Plan all nights first → их boost формирует mood следующего дня
   const nightByDayKey = new Map<string, NightPlan>();
-  const sessions: Array<Record<string, unknown>> = [];
+  const sessions: Array<{
+    user_id: string; started_at: string; ended_at: string; woken_at: string;
+    quality: number; interruptions: number; avg_loudness: number;
+    duration_minutes: number; smart_wake: boolean;
+  }> = [];
 
   for (let dayOffset = TOTAL_DAYS; dayOffset >= 1; dayOffset--) {
     const prev = new Date(now);
@@ -103,7 +107,10 @@ export async function seedDemoData(userId: string) {
   }
 
   // 2) Generate pings: base зависит от dow + ночь предыдущего сна
-  const pings: Array<Record<string, unknown>> = [];
+  const pings: Array<{
+    user_id: string; mood: number; emoji: string; activities: string[];
+    note: string | null; source: string; created_at: string;
+  }> = [];
   for (let dayOffset = TOTAL_DAYS; dayOffset >= 0; dayOffset--) {
     const day = new Date(now);
     day.setHours(0, 0, 0, 0);
@@ -145,7 +152,11 @@ export async function seedDemoData(userId: string) {
   }
 
   // 3) glyph_stats history (раз в неделю снимок) — slowly trending up
-  const statsHistory: Array<Record<string, unknown>> = [];
+  const statsHistory: Array<{
+    user_id: string; recorded_at: string;
+    body: number; mind: number; emotions: number; relationships: number;
+    career: number; finance: number; creativity: number; meaning: number;
+  }> = [];
   for (let weekOffset = 8; weekOffset >= 0; weekOffset--) {
     const ts = new Date(now);
     ts.setDate(ts.getDate() - weekOffset * 7);
