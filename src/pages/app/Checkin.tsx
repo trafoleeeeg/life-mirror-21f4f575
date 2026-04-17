@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { computeStatsFromCheckins } from "@/lib/stats";
 import { defaultGlyphState } from "@/components/glyph/GlyphAvatar";
+import { bumpAutoExtract } from "@/lib/autoExtract";
 import { useNavigate } from "react-router-dom";
 
 const TAGS = ["работа", "отношения", "деньги", "здоровье", "друзья", "творчество", "семья", "одиночество", "тревога", "сон", "смысл"];
