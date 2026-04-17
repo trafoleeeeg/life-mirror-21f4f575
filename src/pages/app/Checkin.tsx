@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,17 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Sun, Moon, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
+import { computeStatsFromCheckins } from "@/lib/stats";
+import { defaultGlyphState } from "@/components/glyph/GlyphAvatar";
+import { useNavigate } from "react-router-dom";
 
-const TAGS = ["работа", "отношения", "деньги", "здоровье", "друзья", "творчество", "семья", "одиночество"];
+const TAGS = ["работа", "отношения", "деньги", "здоровье", "друзья", "творчество", "семья", "одиночество", "тревога", "сон", "смысл"];
 
 const Checkin = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"morning" | "evening" | "moment">("morning");
   const [energy, setEnergy] = useState([60]);
   const [mood, setMood] = useState([55]);
@@ -17,36 +24,79 @@ const Checkin = () => {
   const [intent, setIntent] = useState("");
   const [note, setNote] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
+  const [recent, setRecent] = useState<number>(0);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("checkins")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString())
+      .then(({ count }) => setRecent(count ?? 0));
+  }, [user]);
 
   const togglePicked = (t: string) =>
     setPicked((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
 
-  const submit = () => {
-    const entry = {
+  const submit = async () => {
+    if (!user) {
+      toast.error("Войди, чтобы сохранить чек-ин");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      user_id: user.id,
       mode,
-      energy: energy[0],
-      mood: mood[0],
-      sleep: sleep[0],
-      intent,
-      note,
+      energy: mode === "morning" || mode === "evening" ? energy[0] : null,
+      mood: mode !== "morning" ? mood[0] : null,
+      sleep_hours: mode === "morning" ? sleep[0] : null,
+      intent: mode === "morning" ? intent : null,
+      note: mode !== "morning" ? note : null,
       tags: picked,
-      ts: Date.now(),
     };
-    const all = JSON.parse(localStorage.getItem("ig:checkins") || "[]");
-    all.push(entry);
-    localStorage.setItem("ig:checkins", JSON.stringify(all));
-    toast.success("Чек-ин записан", { description: "Глиф учтёт это в следующем обновлении." });
+    const { error } = await supabase.from("checkins").insert(payload);
+    if (error) {
+      setSaving(false);
+      toast.error(error.message);
+      return;
+    }
+
+    // Recompute stats from full window and write a new snapshot
+    const { data: history } = await supabase
+      .from("checkins")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    const { data: lastStats } = await supabase
+      .from("glyph_stats")
+      .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
+      .eq("user_id", user.id)
+      .order("recorded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const base = (lastStats as typeof defaultGlyphState | null) ?? defaultGlyphState;
+    const next = computeStatsFromCheckins(history ?? [], base);
+    await supabase.from("glyph_stats").insert({ user_id: user.id, ...next });
+
+    setSaving(false);
+    toast.success("Чек-ин записан", { description: "Статы пересчитаны." });
     setNote("");
     setIntent("");
     setPicked([]);
+    setTimeout(() => navigate("/app"), 600);
   };
 
   return (
     <>
       <PageHeader
-        eyebrow="структурированный ввод"
+        eyebrow={`за 7 дней: ${recent} чек-инов`}
         title="Чек-ин"
-        description="Минимум полей — максимум сигнала. Это не дневник, это калибровка зеркала."
+        description="Минимум полей — максимум сигнала. Калибровка зеркала."
       />
 
       <div className="flex gap-2 mb-6">
@@ -59,7 +109,6 @@ const Checkin = () => {
             key={m.id}
             variant={mode === m.id ? "default" : "outline"}
             onClick={() => setMode(m.id)}
-            className={mode === m.id ? "" : ""}
           >
             <m.icon className="size-4" />
             {m.label}
@@ -67,7 +116,7 @@ const Checkin = () => {
         ))}
       </div>
 
-      <Card className="glass p-6 space-y-6">
+      <Card className="ios-card p-6 space-y-6 max-w-2xl">
         {mode === "morning" && (
           <>
             <Field label={`Сон: ${sleep[0]} ч`}>
@@ -103,7 +152,7 @@ const Checkin = () => {
                     onClick={() => togglePicked(t)}
                     className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
                       picked.includes(t)
-                        ? "bg-primary text-primary-foreground border-primary "
+                        ? "bg-primary text-primary-foreground border-primary"
                         : "border-border hover:border-primary/60"
                     }`}
                   >
@@ -116,7 +165,7 @@ const Checkin = () => {
               <Textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="События, имена, ощущения. AI извлечёт связи в граф."
+                placeholder="События, имена, ощущения."
                 rows={4}
               />
             </Field>
@@ -143,8 +192,8 @@ const Checkin = () => {
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
             никаких оценок · только сигнал
           </p>
-          <Button onClick={submit} className="">
-            Зафиксировать
+          <Button onClick={submit} disabled={saving} className="rounded-full">
+            {saving ? "Сохраняю…" : "Зафиксировать"}
           </Button>
         </div>
       </Card>
