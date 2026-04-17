@@ -15,7 +15,7 @@ const GlyphHome = () => {
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
+    const load = async () => {
       const [{ data: profile }, { data: stats }] = await Promise.all([
         supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
         supabase
@@ -28,7 +28,24 @@ const GlyphHome = () => {
       ]);
       if (profile?.display_name) setName(profile.display_name);
       if (stats) setGlyph(stats as GlyphState);
-    })();
+    };
+    load();
+    // refresh whenever a new stats row is inserted for this user
+    const ch = supabase
+      .channel("glyph-stats-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "glyph_stats", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as Record<string, number>;
+          setGlyph({
+            body: row.body, mind: row.mind, emotions: row.emotions, relationships: row.relationships,
+            career: row.career, finance: row.finance, creativity: row.creativity, meaning: row.meaning,
+          } as GlyphState);
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [user]);
 
   const today = new Date().toLocaleDateString("ru", { weekday: "long", day: "numeric", month: "long" });
