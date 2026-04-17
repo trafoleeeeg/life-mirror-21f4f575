@@ -44,6 +44,7 @@ const PERIODS: PeriodDays[] = [7, 30, 60, 90];
 
 const Graph = () => {
   const { user, session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [entities, setEntities] = useState<DbEntity[]>([]);
   const [edges, setEdges] = useState<DbEdge[]>([]);
   const [pings, setPings] = useState<PingRow[]>([]);
