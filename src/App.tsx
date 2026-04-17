@@ -24,6 +24,7 @@ import Learn from "./pages/app/Learn";
 import Settings from "./pages/app/Settings";
 import Notifications from "./pages/app/Notifications";
 import Ping from "./pages/app/Ping";
+import Admin from "./pages/app/Admin";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="settings" element={<Settings />} />
               <Route path="notifications" element={<Notifications />} />
               <Route path="ping" element={<Ping />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
