@@ -1,74 +1,273 @@
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
-import { GlyphAvatar, GlyphState, STAT_ORDER, defaultGlyphState } from "@/components/glyph/GlyphAvatar";
-import { Trophy, Flame } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { STAT_META, STAT_ORDER, StatKey, defaultGlyphState } from "@/components/glyph/GlyphAvatar";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Legend,
+} from "recharts";
+import { TrendingDown, TrendingUp, Minus } from "lucide-react";
+
+type Range = 7 | 30 | 90;
+
+interface StatRow {
+  recorded_at: string;
+  body: number;
+  mind: number;
+  emotions: number;
+  relationships: number;
+  career: number;
+  finance: number;
+  creativity: number;
+  meaning: number;
+}
 
 const Progress = () => {
-  // Synthetic weekly snapshots based on default state
-  const snapshots: { date: string; state: GlyphState }[] = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (5 - i) * 7);
-    const drift = (5 - i) * 3;
-    const state = Object.fromEntries(
-      STAT_ORDER.map((k) => [
-        k,
-        Math.max(20, Math.min(95, defaultGlyphState[k] - drift + Math.random() * 6)),
-      ]),
-    ) as GlyphState;
-    return {
-      date: d.toLocaleDateString("ru", { day: "numeric", month: "short" }),
-      state,
-    };
-  });
+  const { user } = useAuth();
+  const [range, setRange] = useState<Range>(30);
+  const [rows, setRows] = useState<StatRow[]>([]);
+  const [active, setActive] = useState<Set<StatKey>>(new Set(STAT_ORDER));
 
-  const overall = (s: GlyphState) =>
-    Math.round(STAT_ORDER.reduce((sum, k) => sum + s[k], 0) / STAT_ORDER.length);
+  useEffect(() => {
+    if (!user) return;
+    const since = new Date(Date.now() - range * 24 * 3600 * 1000).toISOString();
+    supabase
+      .from("glyph_stats")
+      .select("recorded_at, body, mind, emotions, relationships, career, finance, creativity, meaning")
+      .eq("user_id", user.id)
+      .gte("recorded_at", since)
+      .order("recorded_at", { ascending: true })
+      .then(({ data }) => setRows((data || []) as StatRow[]));
+  }, [user, range]);
+
+  const chartData = useMemo(() => {
+    return rows.map((r) => {
+      const overall = Math.round(
+        STAT_ORDER.reduce((s, k) => s + r[k], 0) / STAT_ORDER.length,
+      );
+      const d = new Date(r.recorded_at);
+      return {
+        date: d.toLocaleDateString("ru", { day: "numeric", month: "short" }),
+        ts: d.getTime(),
+        ...Object.fromEntries(STAT_ORDER.map((k) => [k, r[k]])),
+        overall,
+      };
+    });
+  }, [rows]);
+
+  const summary = useMemo(() => {
+    if (rows.length < 1) return null;
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+    const overallFirst =
+      STAT_ORDER.reduce((s, k) => s + first[k], 0) / STAT_ORDER.length;
+    const overallLast =
+      STAT_ORDER.reduce((s, k) => s + last[k], 0) / STAT_ORDER.length;
+    const delta = Math.round(overallLast - overallFirst);
+    const perStat = STAT_ORDER.map((k) => ({
+      key: k,
+      delta: Math.round(last[k] - first[k]),
+      current: last[k],
+    }));
+    return { delta, current: Math.round(overallLast), perStat };
+  }, [rows]);
+
+  const toggleStat = (k: StatKey) => {
+    setActive((p) => {
+      const n = new Set(p);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  };
 
   return (
     <>
       <PageHeader
         eyebrow="отпечатки личности"
         title="Прогресс"
-        description="Снимки Глифа по неделям. Сравнивай — и видь, как ты на самом деле меняешься."
-      />
-
-      <Card className="ios-card p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">6 недель</p>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="flex items-center gap-1.5">
-              <Trophy className="size-4 text-primary" /> {snapshots.length} снимков
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Flame className="size-4 text-destructive" /> 4 дня подряд
-            </span>
-          </div>
+        description="Динамика твоих 8 сфер. Реальные данные — из чек-инов и разговоров с AI."
+      >
+        <div className="flex gap-1">
+          {([7, 30, 90] as Range[]).map((r) => (
+            <Button
+              key={r}
+              size="sm"
+              variant={range === r ? "default" : "outline"}
+              onClick={() => setRange(r)}
+              className="rounded-full"
+            >
+              {r} дн
+            </Button>
+          ))}
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          {snapshots.map((s, i) => (
-            <div key={i} className="text-center">
-              <div
-                className={`p-2 rounded-xl border ${
-                  i === snapshots.length - 1 ? "border-primary" : "border-border"
+      </PageHeader>
+
+      {/* Summary */}
+      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+        <Card className="ios-card p-4">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            life score
+          </p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-3xl font-semibold">{summary?.current ?? "—"}</span>
+            {summary && (
+              <span
+                className={`inline-flex items-center text-sm ${
+                  summary.delta > 0
+                    ? "text-growth"
+                    : summary.delta < 0
+                    ? "text-tension"
+                    : "text-muted-foreground"
                 }`}
               >
-                <GlyphAvatar state={s.state} size={90} showCenter={false} />
-              </div>
-              <div className="mono text-[10px] text-muted-foreground mt-2">{s.date}</div>
-              <div className="mono text-xs">{overall(s.state)}</div>
-            </div>
-          ))}
-        </div>
+                {summary.delta > 0 ? (
+                  <TrendingUp className="size-3.5 mr-0.5" />
+                ) : summary.delta < 0 ? (
+                  <TrendingDown className="size-3.5 mr-0.5" />
+                ) : (
+                  <Minus className="size-3.5 mr-0.5" />
+                )}
+                {summary.delta > 0 ? `+${summary.delta}` : summary.delta}
+              </span>
+            )}
+          </div>
+        </Card>
+        <Card className="ios-card p-4">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            снимков
+          </p>
+          <p className="text-3xl font-semibold mt-1">{rows.length}</p>
+        </Card>
+        <Card className="ios-card p-4">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            окно
+          </p>
+          <p className="text-3xl font-semibold mt-1">{range} дн</p>
+        </Card>
+      </div>
+
+      {/* Chart */}
+      <Card className="ios-card p-4 mb-4">
+        {chartData.length < 2 ? (
+          <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground text-center px-6">
+            Пока недостаточно снимков. Сделай ещё пару чек-инов или поговори с психологом — и динамика
+            появится.
+          </div>
+        ) : (
+          <div className="h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 12,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "hsl(var(--foreground))" }}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: 11 }}
+                  iconType="circle"
+                  iconSize={8}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="overall"
+                  name="Средний"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+                {STAT_ORDER.filter((k) => active.has(k)).map((k) => (
+                  <Line
+                    key={k}
+                    type="monotone"
+                    dataKey={k}
+                    name={STAT_META[k].label}
+                    stroke={`hsl(var(${STAT_META[k].tokenVar}))`}
+                    strokeWidth={1.5}
+                    dot={false}
+                    strokeOpacity={0.85}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </Card>
 
-      <Card className="ios-card p-6">
-        <h3 className="font-semibold mb-3">Темы, проработанные за месяц</h3>
-        <div className="flex flex-wrap gap-2">
-          {["сон", "тревога", "карьера", "близкие", "деньги", "тело"].map((t) => (
-            <span key={t} className="px-3 py-1 rounded-full bg-muted text-sm">
-              {t}
-            </span>
-          ))}
+      {/* Toggle stats + per-stat delta */}
+      <Card className="ios-card p-4">
+        <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+          сферы
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {STAT_ORDER.map((k) => {
+            const stat = summary?.perStat.find((s) => s.key === k);
+            const on = active.has(k);
+            return (
+              <button
+                key={k}
+                onClick={() => toggleStat(k)}
+                className={`text-left p-3 rounded-xl border transition-colors ${
+                  on
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-border opacity-60 hover:opacity-100"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ backgroundColor: `hsl(var(${STAT_META[k].tokenVar}))` }}
+                  />
+                  <span className="text-sm font-medium">{STAT_META[k].label}</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="mono text-lg">
+                    {stat?.current ?? defaultGlyphState[k]}
+                  </span>
+                  {stat && (
+                    <span
+                      className={`text-xs ${
+                        stat.delta > 0
+                          ? "text-growth"
+                          : stat.delta < 0
+                          ? "text-tension"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {stat.delta > 0 ? `+${stat.delta}` : stat.delta}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </Card>
     </>
