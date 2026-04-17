@@ -250,6 +250,22 @@ const SECTIONS: Section[] = [
 const Learn = () => {
   const [open, setOpen] = useState<number | null>(0);
 
+  useEffect(() => {
+    const applyHash = () => {
+      const slug = window.location.hash.replace(/^#/, "");
+      if (!slug) return;
+      const idx = SECTIONS.findIndex((s) => s.slug === slug);
+      if (idx === -1) return;
+      setOpen(idx);
+      setTimeout(() => {
+        document.getElementById(`learn-${slug}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -263,7 +279,7 @@ const Learn = () => {
           const Icon = s.icon;
           const isOpen = open === i;
           return (
-            <Card key={s.title} className="ios-card overflow-hidden">
+            <Card key={s.title} id={`learn-${s.slug}`} className="ios-card overflow-hidden scroll-mt-20">
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : i)}
