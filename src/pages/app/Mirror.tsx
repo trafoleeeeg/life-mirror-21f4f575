@@ -233,11 +233,11 @@ const Mirror = () => {
       {/* DnD */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
-          <div className="space-y-5">
+          <div className="flex flex-col gap-5 isolate">
             {order.map((id, i) => (
               <SortableSection key={id} id={id}>
                 <div
-                  className="animate-slide-up"
+                  className="animate-slide-up bg-background rounded-2xl"
                   style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
                 >
                   {sections[id]}
