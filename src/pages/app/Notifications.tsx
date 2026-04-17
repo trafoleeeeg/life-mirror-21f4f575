@@ -240,7 +240,13 @@ const Notifications = () => {
           <div className="space-y-3">
             <Label className="text-sm">
               Окно: {String(prefs.start_hour).padStart(2, "0")}:00 — {String(prefs.end_hour).padStart(2, "0")}:00
+              {prefs.end_hour <= prefs.start_hour && (
+                <span className="ml-2 text-[11px] text-primary">(через полночь)</span>
+              )}
             </Label>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              Можно задать ночное окно — например, с 17 до 03. Если конец ≤ начала, окно переходит на следующий день.
+            </p>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground w-16">Начало</span>
@@ -249,14 +255,9 @@ const Notifications = () => {
                   min={0}
                   max={23}
                   step={1}
-                  onValueChange={(v) => {
-                    const next = v[0] ?? 10;
-                    setPrefs((p) => ({
-                      ...p,
-                      start_hour: next,
-                      end_hour: Math.max(next + 1, p.end_hour),
-                    }));
-                  }}
+                  onValueChange={(v) =>
+                    setPrefs((p) => ({ ...p, start_hour: v[0] ?? 10 }))
+                  }
                 />
                 <span className="text-sm font-mono w-10 text-right">
                   {String(prefs.start_hour).padStart(2, "0")}
@@ -266,17 +267,12 @@ const Notifications = () => {
                 <span className="text-xs text-muted-foreground w-16">Конец</span>
                 <Slider
                   value={[prefs.end_hour]}
-                  min={1}
+                  min={0}
                   max={23}
                   step={1}
-                  onValueChange={(v) => {
-                    const next = v[0] ?? 22;
-                    setPrefs((p) => ({
-                      ...p,
-                      end_hour: next,
-                      start_hour: Math.min(next - 1, p.start_hour),
-                    }));
-                  }}
+                  onValueChange={(v) =>
+                    setPrefs((p) => ({ ...p, end_hour: v[0] ?? 22 }))
+                  }
                 />
                 <span className="text-sm font-mono w-10 text-right">
                   {String(prefs.end_hour).padStart(2, "0")}
