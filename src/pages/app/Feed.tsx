@@ -365,43 +365,8 @@ const Feed = () => {
         </div>
       </div>
 
-      {/* Composer — Threads style */}
-      {user && (
-        <div className="px-4 py-3 border-b border-border/50 flex gap-3">
-          <Avatar className="size-10 shrink-0">
-            {myAvatar && <AvatarImage src={myAvatar} alt={myName} />}
-            <AvatarFallback className="text-xs">{initialsOf(myName || user.email)}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Что нового?"
-              rows={1}
-              className="resize-none border-0 px-0 py-1 text-[15px] focus-visible:ring-0 shadow-none min-h-[40px] bg-transparent"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void publish();
-                }
-              }}
-            />
-            <div className="flex justify-between items-center mt-1">
-              <span className="text-xs text-muted-foreground">
-                {draft.length > 0 && `${draft.length}`}
-              </span>
-              <Button
-                onClick={publish}
-                disabled={!draft.trim() || posting}
-                size="sm"
-                className="rounded-full"
-              >
-                {posting ? <Loader2 className="size-3.5 animate-spin" /> : "Запостить"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Composer — Threads style with image upload */}
+      <PostComposer myAvatar={myAvatar} myName={myName} />
 
       {/* Feed */}
       {loading ? (
