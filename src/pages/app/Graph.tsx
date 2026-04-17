@@ -28,10 +28,12 @@ import type { DbEntity, DbEdge, PingRow, CheckinRow, EntityType } from "@/types/
 import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
 import {
   computeBaseline, computeImpact, computeCombos, computeRecommendations,
-  compareImpactPeriods, filterByDays, type PeriodDays, type ImpactRow, type ComboRow,
+  compareImpactPeriods, filterByDays, computeEntitySeries,
+  type PeriodDays, type ImpactRow, type ComboRow, type EntitySeriesPoint,
 } from "@/lib/lifeMap";
 import { EntityManager } from "@/components/graph/EntityManager";
 import { AddEntityDialog } from "@/components/graph/AddEntityDialog";
+import { EntitySparkline } from "@/components/graph/EntitySparkline";
 
 const PERIODS: PeriodDays[] = [7, 30, 60, 90];
 
