@@ -29,7 +29,7 @@ import type { DateRange } from "react-day-picker";
 
 import {
   DndContext, PointerSensor, useSensor, useSensors,
-  closestCenter, type DragEndEvent,
+  closestCenter, DragOverlay, type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
