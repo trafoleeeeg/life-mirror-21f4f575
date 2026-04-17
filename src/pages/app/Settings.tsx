@@ -21,7 +21,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Camera, Download, LogOut, Trash2 } from "lucide-react";
+import { Bell, Camera, Download, LogOut, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type Tone = "soft" | "hard" | "socratic";
 type Lang = "ru" | "en";
@@ -256,6 +257,25 @@ const Settings = () => {
           <Button onClick={save} disabled={saving} className="rounded-full w-full sm:w-auto">
             Сохранить
           </Button>
+        </Card>
+
+        <Card className="ios-card p-5 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
+                <Bell className="size-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Push-уведомления</h3>
+                <p className="text-sm text-muted-foreground">
+                  Микро-чек настроения по гибкому расписанию.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="rounded-full shrink-0">
+              <Link to="/app/notifications">Настроить</Link>
+            </Button>
+          </div>
         </Card>
 
         <Card className="ios-card p-5 space-y-3">

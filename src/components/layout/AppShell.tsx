@@ -11,6 +11,7 @@ import {
   Trophy,
   BookOpen,
   Settings,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ const sidebarNav = [
   { to: "/app/dms", label: "Сообщения", icon: Mail },
   { to: "/app/progress", label: "Прогресс", icon: Trophy },
   { to: "/app/learn", label: "Знания", icon: BookOpen },
+  { to: "/app/notifications", label: "Уведомления", icon: Bell },
 ];
 
 export const AppShell = () => {

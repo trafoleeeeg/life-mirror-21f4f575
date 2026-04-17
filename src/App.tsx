@@ -19,6 +19,8 @@ import DMs from "./pages/app/DMs";
 import Progress from "./pages/app/Progress";
 import Learn from "./pages/app/Learn";
 import Settings from "./pages/app/Settings";
+import Notifications from "./pages/app/Notifications";
+import Ping from "./pages/app/Ping";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -52,6 +54,8 @@ const App = () => (
               <Route path="progress" element={<Progress />} />
               <Route path="learn" element={<Learn />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="ping" element={<Ping />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
