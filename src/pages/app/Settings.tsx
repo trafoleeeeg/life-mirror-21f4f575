@@ -21,8 +21,9 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Bell, Camera, Download, LogOut, Trash2 } from "lucide-react";
+import { Bell, Camera, Copy, Download, LogOut, Trash2, Check } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
 
 type Tone = "soft" | "hard" | "socratic";
 type Lang = "ru" | "en";
@@ -32,6 +33,8 @@ const Settings = () => {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
   const [tone, setTone] = useState<Tone>("soft");
   const [language, setLanguage] = useState<Lang>("ru");
   const [emailNotif, setEmailNotif] = useState(true);
@@ -40,17 +43,20 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("display_name, ai_tone, language, email_notifications, avatar_url")
+      .select("display_name, username, bio, ai_tone, language, email_notifications, avatar_url")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setName(data.display_name ?? "");
+        setUsername((data as { username?: string | null }).username ?? "");
+        setBio((data as { bio?: string | null }).bio ?? "");
         setTone((data.ai_tone as Tone) ?? "soft");
         setLanguage(((data as { language?: Lang }).language ?? "ru"));
         setEmailNotif((data as { email_notifications?: boolean }).email_notifications ?? true);
@@ -60,14 +66,41 @@ const Settings = () => {
 
   const save = async () => {
     if (!user) return;
+    const u = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (u && (u.length < 3 || u.length > 24)) {
+      toast.error("Никнейм 3–24 символа: латиница, цифры, _");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: name, ai_tone: tone, language, email_notifications: emailNotif })
+      .update({
+        display_name: name,
+        username: u || null,
+        bio: bio.trim() || null,
+        ai_tone: tone,
+        language,
+        email_notifications: emailNotif,
+      })
       .eq("user_id", user.id);
     setSaving(false);
-    if (error) toast.error(error.message);
-    else toast.success("Сохранено");
+    if (error) {
+      if (String(error.message).includes("duplicate") || String(error.message).includes("unique")) {
+        toast.error("Этот никнейм уже занят");
+      } else {
+        toast.error(error.message);
+      }
+    } else {
+      setUsername(u);
+      toast.success("Сохранено");
+    }
+  };
+
+  const copyId = async () => {
+    if (!user) return;
+    await navigator.clipboard.writeText(user.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const onAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
