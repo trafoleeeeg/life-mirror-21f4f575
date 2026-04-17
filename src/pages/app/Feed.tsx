@@ -252,14 +252,12 @@ const Feed = () => {
 
   const toggleLike = async (p: Post) => {
     if (!user) return;
-    // optimistic
-    setPosts((prev) =>
-      prev.map((x) => (x.id === p.id ? { ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) } : x)),
-    );
+    // Realtime сам обновит счётчик и `liked` — поэтому без оптимистичного инкремента
     if (p.liked) {
       await supabase.from("post_likes").delete().eq("post_id", p.id).eq("user_id", user.id);
     } else {
-      await supabase.from("post_likes").insert({ post_id: p.id, user_id: user.id });
+      const { error } = await supabase.from("post_likes").insert({ post_id: p.id, user_id: user.id });
+      if (error && !String(error.message).includes("duplicate")) toast.error("Не удалось");
     }
   };
 
