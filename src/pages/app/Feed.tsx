@@ -73,28 +73,33 @@ const Feed = () => {
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [commentDraft, setCommentDraft] = useState("");
 
-  const load = async () => {
-    setLoading(true);
-    const { data: rawPosts, error } = await supabase
-      .from("posts")
-      .select("id,user_id,category,content,created_at")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      toast.error("Не удалось загрузить ленту");
-      setLoading(false);
-      return;
-    }
-    const ids = (rawPosts || []).map((p) => p.id);
-    const userIds = Array.from(new Set((rawPosts || []).map((p) => p.user_id)));
+  const enrichPosts = async (
+    rawPosts: Array<{
+      id: string;
+      user_id: string | null;
+      category: string;
+      content: string;
+      created_at: string;
+      is_ai: boolean;
+      ai_author: string | null;
+    }>,
+  ): Promise<Post[]> => {
+    const ids = rawPosts.map((p) => p.id);
+    const userIds = Array.from(new Set(rawPosts.map((p) => p.user_id).filter((x): x is string => !!x)));
 
     const [profilesRes, likesRes, myLikesRes, commentsCountRes] = await Promise.all([
-      supabase.from("public_profiles").select("user_id,display_name").in("user_id", userIds),
-      supabase.from("post_likes").select("post_id").in("post_id", ids),
-      user
+      userIds.length
+        ? supabase.from("public_profiles").select("user_id,display_name").in("user_id", userIds)
+        : Promise.resolve({ data: [] as { user_id: string; display_name: string | null }[] }),
+      ids.length
+        ? supabase.from("post_likes").select("post_id").in("post_id", ids)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
+      user && ids.length
         ? supabase.from("post_likes").select("post_id").in("post_id", ids).eq("user_id", user.id)
         : Promise.resolve({ data: [] as { post_id: string }[] }),
-      supabase.from("post_comments").select("post_id").in("post_id", ids),
+      ids.length
+        ? supabase.from("post_comments").select("post_id").in("post_id", ids)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
     ]);
 
     const nameMap = new Map((profilesRes.data || []).map((p) => [p.user_id, p.display_name || "аноним"]));
@@ -106,15 +111,30 @@ const Feed = () => {
     );
     const mySet = new Set((myLikesRes.data || []).map((l) => l.post_id));
 
-    setPosts(
-      (rawPosts || []).map((p) => ({
-        ...p,
-        author_name: nameMap.get(p.user_id) || "аноним",
-        likes: likesMap.get(p.id) || 0,
-        comments: commentsMap.get(p.id) || 0,
-        liked: mySet.has(p.id),
-      })),
-    );
+    return rawPosts.map((p) => ({
+      ...p,
+      author_name: p.is_ai
+        ? p.ai_author || "AI · Дилемма дня"
+        : (p.user_id && nameMap.get(p.user_id)) || "аноним",
+      likes: likesMap.get(p.id) || 0,
+      comments: commentsMap.get(p.id) || 0,
+      liked: mySet.has(p.id),
+    }));
+  };
+
+  const load = async () => {
+    setLoading(true);
+    const { data: rawPosts, error } = await supabase
+      .from("posts")
+      .select("id,user_id,category,content,created_at,is_ai,ai_author")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      toast.error("Не удалось загрузить ленту");
+      setLoading(false);
+      return;
+    }
+    setPosts(await enrichPosts(rawPosts || []));
     setLoading(false);
   };
 
@@ -122,6 +142,83 @@ const Feed = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Realtime: новые посты, лайки, комментарии
+  useEffect(() => {
+    const channel = supabase
+      .channel("feed-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts" },
+        async (payload) => {
+          const row = payload.new as {
+            id: string; user_id: string | null; category: string; content: string;
+            created_at: string; is_ai: boolean; ai_author: string | null;
+          };
+          // Не дублируем — если уже есть локально (после своего insert), пропускаем
+          setPosts((prev) => {
+            if (prev.some((p) => p.id === row.id)) return prev;
+            return prev;
+          });
+          const enriched = await enrichPosts([row]);
+          setPosts((prev) => (prev.some((p) => p.id === row.id) ? prev : [enriched[0], ...prev]));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "posts" },
+        (payload) => {
+          const id = (payload.old as { id: string }).id;
+          setPosts((prev) => prev.filter((p) => p.id !== id));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "post_likes" },
+        (payload) => {
+          const { post_id, user_id: likerId } = payload.new as { post_id: string; user_id: string };
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === post_id
+                ? { ...p, likes: p.likes + 1, liked: likerId === user?.id ? true : p.liked }
+                : p,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "post_likes" },
+        (payload) => {
+          const { post_id, user_id: likerId } = payload.old as { post_id: string; user_id: string };
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === post_id
+                ? { ...p, likes: Math.max(0, p.likes - 1), liked: likerId === user?.id ? false : p.liked }
+                : p,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "post_comments" },
+        async (payload) => {
+          const { post_id } = payload.new as { post_id: string; user_id: string; content: string; id: string; created_at: string };
+          setPosts((prev) =>
+            prev.map((p) => (p.id === post_id ? { ...p, comments: p.comments + 1 } : p)),
+          );
+          // Если открыты комменты этого поста — перезагрузим
+          if (openComments === post_id) await loadComments(post_id);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, openComments]);
 
   const visible = useMemo(() => {
     const filtered = filter === "все" ? posts : posts.filter((p) => p.category === filter);
