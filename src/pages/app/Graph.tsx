@@ -44,6 +44,14 @@ const TYPE_LABEL: Record<EntityType | "all", string> = {
   emotion: "эмоции",
 };
 
+interface ContextItem {
+  id: string;
+  kind: "checkin" | "chat";
+  text: string;
+  date: string;
+  meta?: string;
+}
+
 const Graph = () => {
   const { user, session } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -52,6 +60,8 @@ const Graph = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [filter, setFilter] = useState<EntityType | "all">("all");
   const [selected, setSelected] = useState<Node | null>(null);
+  const [context, setContext] = useState<ContextItem[]>([]);
+  const [contextLoading, setContextLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const draggingRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
