@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Plus, X, Sparkles } from "lucide-react";
+import { computeStatsFromCheckins } from "@/lib/stats";
+import { defaultGlyphState } from "@/components/glyph/GlyphAvatar";
 
 const DEFAULT_EMOJIS = ["😞", "😕", "😐", "🙂", "😊", "😄", "😍", "🤩", "🚀", "✨"];
 const MOOD_LABELS = [
