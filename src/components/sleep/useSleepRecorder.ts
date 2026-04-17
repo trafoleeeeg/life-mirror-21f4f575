@@ -49,7 +49,8 @@ export const useSleepRecorder = (): UseSleepRecorder => {
     const analyser = analyserRef.current;
     const buf = bufRef.current;
     if (!analyser || !buf) return;
-    analyser.getFloatTimeDomainData(buf);
+    // Cast to satisfy stricter Float32Array<ArrayBuffer> typing in newer TS lib
+    analyser.getFloatTimeDomainData(buf as unknown as Float32Array);
     let sumSq = 0;
     let crossings = 0;
     let prev = buf[0];
