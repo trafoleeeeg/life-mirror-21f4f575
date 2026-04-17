@@ -148,7 +148,6 @@ export const DossierPanel = ({ open, onClose }: Props) => {
       relationships: dossier.relationships as unknown as never,
       notes: dossier.notes,
     };
-    // @ts-expect-error — supabase upsert overload mis-types JSONB columns as Json union
     const { error } = await supabase.from("user_dossier").upsert(payload, { onConflict: "user_id" });
     if (error) toast.error(error.message);
     else { toast.success("Сохранено"); setEditing(false); await load(); }

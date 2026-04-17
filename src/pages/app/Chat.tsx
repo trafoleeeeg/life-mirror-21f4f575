@@ -69,6 +69,7 @@ const Chat = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showSessions, setShowSessions] = useState(false);
   const [sessionSearch, setSessionSearch] = useState("");
+  const [dossierOpen, setDossierOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Load tone + sessions
