@@ -109,7 +109,7 @@ export const AppShell = () => {
       </header>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 pt-14 pb-24 md:pt-0 md:pb-0">
+      <main className="flex-1 min-w-0 pt-14 pb-24 md:pt-0 md:pb-0 overflow-x-hidden">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-10 animate-fade-in">
           <Outlet />
         </div>
