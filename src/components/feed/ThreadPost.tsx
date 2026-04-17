@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Heart, MessageCircle, Repeat2, Share, Trash2, Sparkles, MoreHorizontal, Quote } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ImageLightbox } from "./ImageLightbox";
 
 const M = 60_000;
 const ago = (iso: string) => {
@@ -85,6 +86,7 @@ export const ThreadPost = ({
 }: Props) => {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
   const isRepost = !!post.original;
   const displayName = isRepost ? post.original!.author_name : post.author_name;
   const displayUsername = isRepost ? post.original!.author_username : post.author_username;
@@ -190,15 +192,25 @@ export const ThreadPost = ({
             <p className="text-[15px] leading-snug whitespace-pre-wrap mt-0.5 break-words">
               {displayContent}
             </p>
-            {displayImage && (
+          </Link>
+          {displayImage && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox(true); }}
+              className="block w-full mt-2 rounded-2xl overflow-hidden border border-border/40 hover:opacity-95 transition-opacity"
+              aria-label="Открыть изображение"
+            >
               <img
                 src={displayImage}
                 alt=""
-                className="mt-2 rounded-2xl max-h-96 w-full object-cover border border-border/40"
+                className="max-h-96 w-full object-cover"
                 loading="lazy"
               />
-            )}
-          </Link>
+            </button>
+          )}
+          {lightbox && displayImage && (
+            <ImageLightbox src={displayImage} onClose={() => setLightbox(false)} />
+          )}
 
           {/* Action row — Threads style: heart, comment, repost, share */}
           <div className="flex items-center gap-1 -ml-2 mt-2 text-muted-foreground">
