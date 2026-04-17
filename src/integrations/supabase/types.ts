@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          description: string
+          emoji: string
+          id: string
+          threshold: number
+          title: string
+        }
+        Insert: {
+          category?: string
+          code: string
+          created_at?: string
+          description: string
+          emoji?: string
+          id?: string
+          threshold?: number
+          title: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          threshold?: number
+          title?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -229,6 +262,90 @@ export type Database = {
         }
         Relationships: []
       }
+      mood_pings: {
+        Row: {
+          activities: string[]
+          created_at: string
+          emoji: string | null
+          id: string
+          mood: number
+          note: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          activities?: string[]
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          mood: number
+          note?: string | null
+          source?: string
+          user_id: string
+        }
+        Update: {
+          activities?: string[]
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          mood?: number
+          note?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          end_hour: number
+          id: string
+          interval_minutes: number
+          last_sent_at: string | null
+          mood_emojis: string[]
+          start_hour: number
+          timezone: string
+          track_activity: boolean
+          track_mood: boolean
+          updated_at: string
+          user_id: string
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          end_hour?: number
+          id?: string
+          interval_minutes?: number
+          last_sent_at?: string | null
+          mood_emojis?: string[]
+          start_hour?: number
+          timezone?: string
+          track_activity?: boolean
+          track_mood?: boolean
+          updated_at?: string
+          user_id: string
+          weekdays?: number[]
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          end_hour?: number
+          id?: string
+          interval_minutes?: number
+          last_sent_at?: string | null
+          mood_emojis?: string[]
+          start_hour?: number
+          timezone?: string
+          track_activity?: boolean
+          track_mood?: boolean
+          updated_at?: string
+          user_id?: string
+          weekdays?: number[]
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_tone: string
@@ -265,12 +382,105 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_used_at: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_used_at?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_used_at?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quick_actions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          label: string
+          position: number
+          use_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          label: string
+          position?: number
+          use_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          label?: string
+          position?: number
+          use_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      compute_ping_streak: { Args: { _user: string }; Returns: number }
+      try_unlock: { Args: { _code: string; _user: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
