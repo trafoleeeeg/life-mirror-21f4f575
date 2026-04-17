@@ -22,12 +22,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  RefreshCw, Download, Trash2, Pencil, Plus, X, FileText, Save,
+  RefreshCw, Download, Trash2, Pencil, Plus, X, FileText, Save, History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DossierVersions } from "./DossierVersions";
 
 interface Item { title: string; detail: string }
 interface Dossier {
@@ -77,6 +78,7 @@ export const DossierPanel = ({ open, onClose }: Props) => {
   const [building, setBuilding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -230,12 +232,22 @@ export const DossierPanel = ({ open, onClose }: Props) => {
           <Button size="sm" variant="outline" onClick={exportJson} disabled={isEmpty} className="rounded-full">
             <Download className="size-3.5 mr-1.5" />Выгрузить
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowHistory(true)} className="rounded-full">
+            <History className="size-3.5 mr-1.5" />История
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setConfirmClear(true)} disabled={isEmpty} className="rounded-full text-destructive border-destructive/40 hover:bg-destructive/10">
             <Trash2 className="size-3.5 mr-1.5" />Очистить
           </Button>
         </div>
 
-        {loading ? (
+        {showHistory && (
+          <DossierVersions
+            onBack={() => setShowHistory(false)}
+            onAfterRestore={() => { setShowHistory(false); void load(); }}
+          />
+        )}
+
+        {showHistory ? null : loading ? (
           <p className="text-sm text-muted-foreground py-8 text-center">Загружаю…</p>
         ) : isEmpty && !editing ? (
           <div className="py-8 text-center space-y-2">

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { UserSearch } from "@/components/social/UserSearch";
 
 const M = 60_000;
 const H = 60 * M;
@@ -94,6 +95,8 @@ const Feed = () => {
   const [draft, setDraft] = useState("");
   const [draftCat, setDraftCat] = useState<Exclude<Cat, "все">>("наблюдение");
   const [filter, setFilter] = useState<Cat>("все");
+  const [scope, setScope] = useState<"all" | "following">("all");
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<"hot" | "fresh">("hot");
   const [posting, setPosting] = useState(false);
   const [openComments, setOpenComments] = useState<string | null>(null);
@@ -216,6 +219,29 @@ const Feed = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Подписки текущего юзера (для вкладки «Подписки»)
+  useEffect(() => {
+    if (!user) { setFollowingIds(new Set()); return; }
+    void (async () => {
+      const { data } = await supabase
+        .from("follows")
+        .select("followee_id")
+        .eq("follower_id", user.id);
+      setFollowingIds(new Set((data || []).map((r) => r.followee_id)));
+    })();
+    const ch = supabase
+      .channel(`my-follows-${user.id}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "follows", filter: `follower_id=eq.${user.id}` },
+        async () => {
+          const { data } = await supabase
+            .from("follows").select("followee_id").eq("follower_id", user.id);
+          setFollowingIds(new Set((data || []).map((r) => r.followee_id)));
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
+
   // Realtime: новые посты, реакции, комменты
   useEffect(() => {
     const channel = supabase
@@ -289,7 +315,13 @@ const Feed = () => {
   }, [user?.id, openComments]);
 
   const visible = useMemo(() => {
-    const filtered = filter === "все" ? posts : posts.filter((p) => p.category === filter);
+    let filtered = filter === "все" ? posts : posts.filter((p) => p.category === filter);
+    if (scope === "following") {
+      filtered = filtered.filter((p) =>
+        // Свои посты тоже показываем во вкладке «подписки»
+        (p.user_id && (followingIds.has(p.user_id) || p.user_id === user?.id))
+      );
+    }
     if (sort === "fresh") return [...filtered].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
     return [...filtered].sort((a, b) => {
       const ha = Math.max(0.5, (Date.now() - +new Date(a.created_at)) / H);
@@ -300,7 +332,7 @@ const Feed = () => {
       const sb = (totalB + b.comments * 2 + b.reposts * 3) / Math.pow(hb, 0.6);
       return sb - sa;
     });
-  }, [posts, filter, sort]);
+  }, [posts, filter, sort, scope, followingIds, user?.id]);
 
   const publish = async () => {
     if (!draft.trim() || !user) return;
@@ -436,8 +468,10 @@ const Feed = () => {
       <PageHeader
         eyebrow="мини-соцсеть · текст важнее картинок"
         title="Лента"
-        description="Дилеммы, мысли, рефлексии. Без подписок — только смыслы."
-      />
+        description="Дилеммы, мысли, рефлексии. Подпишись на людей, чьи идеи откликаются."
+      >
+        <UserSearch className="w-full sm:w-72" />
+      </PageHeader>
 
       {/* Composer */}
       <Card className="ios-card p-4 mb-5">
@@ -470,6 +504,30 @@ const Feed = () => {
           </Button>
         </div>
       </Card>
+
+      {/* Scope: все / подписки */}
+      {user && (
+        <div className="flex items-center gap-1 mb-3">
+          <button
+            onClick={() => setScope("all")}
+            className={cn(
+              "text-xs px-3 py-1 rounded-full transition-colors",
+              scope === "all" ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Все
+          </button>
+          <button
+            onClick={() => setScope("following")}
+            className={cn(
+              "text-xs px-3 py-1 rounded-full transition-colors",
+              scope === "following" ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Подписки {followingIds.size > 0 && <span className="ml-1 opacity-60">{followingIds.size}</span>}
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">

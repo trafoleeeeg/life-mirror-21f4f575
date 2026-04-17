@@ -1,5 +1,5 @@
 // Публичная страница профиля /u/:username
-// Любой авторизованный пользователь может посмотреть ник, аватар, био и посты другого участника.
+// Любой авторизованный пользователь может посмотреть ник, аватар, био, посты, подписаться.
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { ArrowLeft, Sparkles, MessageSquare, Heart } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { FollowButton, FollowCounters } from "@/components/social/FollowButton";
 
 interface ProfileRow {
   user_id: string;
@@ -162,6 +163,10 @@ const UserProfile = () => {
             <p className="text-[11px] text-muted-foreground mt-2">
               в Inner Glyph с {new Date(profile.created_at).toLocaleDateString("ru", { month: "long", year: "numeric" })}
             </p>
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <FollowButton targetUserId={profile.user_id} />
+              <FollowCounters userId={profile.user_id} />
+            </div>
           </div>
         </div>
 

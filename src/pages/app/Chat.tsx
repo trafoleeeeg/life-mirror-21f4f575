@@ -17,6 +17,7 @@ import {
   FileText,
 } from "lucide-react";
 import { DossierPanel } from "@/components/chat/DossierPanel";
+import { DossierIndicator } from "@/components/chat/DossierIndicator";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -426,7 +427,8 @@ const Chat = () => {
         title="Психолог"
         description="Говори свободно. AI помнит контекст и может обновлять твои статы."
       >
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          <DossierIndicator onOpen={() => setDossierOpen(true)} className="mr-1" />
           <Button size="sm" variant="outline" onClick={() => setDossierOpen(true)} className="rounded-full">
             <FileText className="size-4 mr-1.5" />Личное дело
           </Button>
