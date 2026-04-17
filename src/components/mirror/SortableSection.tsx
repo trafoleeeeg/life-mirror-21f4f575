@@ -22,10 +22,11 @@ export const SortableSection = ({ id, children, disabled }: Props) => {
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.55 : 1,
-        zIndex: isDragging ? 30 : "auto",
+        zIndex: isDragging ? 50 : 1,
+        position: "relative",
+        boxShadow: isDragging ? "0 20px 50px -12px hsl(var(--primary) / 0.35)" : undefined,
       }}
-      className="relative group"
+      className={`group isolate ${isDragging ? "opacity-90" : ""}`}
     >
       {!disabled && (
         <button
