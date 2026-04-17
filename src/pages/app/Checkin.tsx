@@ -59,7 +59,7 @@ const Checkin = () => {
             key={m.id}
             variant={mode === m.id ? "default" : "outline"}
             onClick={() => setMode(m.id)}
-            className={mode === m.id ? "shadow-neon" : ""}
+            className={mode === m.id ? "" : ""}
           >
             <m.icon className="size-4" />
             {m.label}
@@ -103,7 +103,7 @@ const Checkin = () => {
                     onClick={() => togglePicked(t)}
                     className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
                       picked.includes(t)
-                        ? "bg-primary text-primary-foreground border-primary shadow-neon"
+                        ? "bg-primary text-primary-foreground border-primary "
                         : "border-border hover:border-primary/60"
                     }`}
                   >
@@ -143,7 +143,7 @@ const Checkin = () => {
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
             никаких оценок · только сигнал
           </p>
-          <Button onClick={submit} className="shadow-neon">
+          <Button onClick={submit} className="">
             Зафиксировать
           </Button>
         </div>

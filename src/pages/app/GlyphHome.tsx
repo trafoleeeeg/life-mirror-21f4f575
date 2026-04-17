@@ -1,20 +1,35 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { GlyphAvatar } from "@/components/glyph/GlyphAvatar";
-import { loadProfile } from "@/lib/profile";
+import { GlyphAvatar, GlyphState, STAT_META, STAT_ORDER, defaultGlyphState } from "@/components/glyph/GlyphAvatar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, ClipboardCheck, MessageCircle, Network } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 
 const GlyphHome = () => {
-  const profile = loadProfile();
-  const { glyph } = profile;
-  const axes = [
-    { key: "integrity", label: "Целостность", color: "bg-primary" },
-    { key: "energy", label: "Энергия", color: "bg-energy" },
-    { key: "calm", label: "Покой", color: "bg-calm" },
-    { key: "growth", label: "Рост", color: "bg-growth" },
-  ] as const;
+  const { user } = useAuth();
+  const [glyph, setGlyph] = useState<GlyphState>(defaultGlyphState);
+  const [name, setName] = useState("Гость");
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const [{ data: profile }, { data: stats }] = await Promise.all([
+        supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
+        supabase
+          .from("glyph_stats")
+          .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
+          .eq("user_id", user.id)
+          .order("recorded_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (profile?.display_name) setName(profile.display_name);
+      if (stats) setGlyph(stats as GlyphState);
+    })();
+  }, [user]);
 
   const today = new Date().toLocaleDateString("ru", { weekday: "long", day: "numeric", month: "long" });
 
@@ -22,91 +37,83 @@ const GlyphHome = () => {
     <>
       <PageHeader
         eyebrow={today}
-        title={`Привет, ${profile.name}`}
-        description="Это твой Глиф сегодня. Он отражает твоё состояние и будет меняться вместе с тобой."
+        title={`Привет, ${name}`}
+        description="Восемь колец — восемь сфер жизни. Ближе к центру — глубже, наружу — шире."
       />
 
       <div className="grid lg:grid-cols-[1fr,1.2fr] gap-6">
-        <Card className="surface-elevated p-6 flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-glyph-radial opacity-60" />
-          <div className="relative animate-float">
+        <Card className="ios-card p-6 flex flex-col items-center justify-center">
+          <div className="animate-float">
             <GlyphAvatar state={glyph} size={300} />
-          </div>
-          <div className="relative grid grid-cols-4 gap-2 w-full mt-6">
-            {axes.map((a) => (
-              <div key={a.key} className="text-center">
-                <div className="mono text-2xl">{glyph[a.key]}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-                  {a.label}
-                </div>
-                <div className="h-1 mt-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className={`h-full ${a.color}`} style={{ width: `${glyph[a.key]}%` }} />
-                </div>
-              </div>
-            ))}
           </div>
         </Card>
 
-        <div className="space-y-4">
-          <Card className="glass p-5">
-            <p className="mono text-[10px] uppercase tracking-widest text-primary/80 mb-2">
-              что говорит зеркало
-            </p>
-            <p className="text-lg leading-relaxed">
-              Твой уровень <span className="text-primary">энергии</span> сейчас выше среднего, но{" "}
-              <span className="text-accent">целостность</span> просела — похоже, ты делаешь много, но
-              не своё. <span className="text-muted-foreground">Гипотеза. Можешь отклонить.</span>
-            </p>
-          </Card>
-
-          <div className="grid sm:grid-cols-3 gap-3">
-            {[
-              { to: "/app/checkin", icon: ClipboardCheck, title: "Чек-ин", text: "1 минута" },
-              { to: "/app/chat", icon: MessageCircle, title: "Разговор", text: "с психологом" },
-              { to: "/app/graph", icon: Network, title: "Граф", text: "связи событий" },
-            ].map((c) => (
-              <Card key={c.to} className="glass p-4 hover:border-primary/60 transition-colors">
-                <Link to={c.to} className="block">
-                  <c.icon className="size-5 text-primary mb-2" />
-                  <div className="font-medium text-sm">{c.title}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-between">
-                    {c.text}
-                    <ArrowRight className="size-3" />
+        <Card className="ios-card p-6">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground mb-4">
+            твои статы
+          </p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            {STAT_ORDER.map((k) => {
+              const v = glyph[k];
+              return (
+                <div key={k}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{ backgroundColor: `hsl(var(${STAT_META[k].tokenVar}))` }}
+                      />
+                      <span className="text-sm font-medium">{STAT_META[k].label}</span>
+                    </div>
+                    <span className="mono text-sm text-muted-foreground">{v}</span>
                   </div>
-                </Link>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="glass p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                ритуал дня
-              </p>
-              <span className="text-xs text-primary">2 из 3</span>
-            </div>
-            <div className="space-y-2">
-              {[
-                { label: "Утренний чек-ин", done: true },
-                { label: "5 минут разговора с собой", done: true },
-                { label: "Вечерний чек-ин", done: false },
-              ].map((r) => (
-                <div key={r.label} className="flex items-center gap-3 text-sm">
-                  <span
-                    className={`size-4 rounded-full border ${
-                      r.done ? "bg-primary border-primary shadow-neon" : "border-border"
-                    }`}
-                  />
-                  <span className={r.done ? "" : "text-muted-foreground"}>{r.label}</span>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${v}%`,
+                        backgroundColor: `hsl(var(${STAT_META[k].tokenVar}))`,
+                      }}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-            <Button asChild size="sm" variant="outline" className="mt-4 w-full">
-              <Link to="/app/checkin">Закрыть день</Link>
-            </Button>
-          </Card>
-        </div>
+              );
+            })}
+          </div>
+        </Card>
       </div>
+
+      <div className="grid sm:grid-cols-3 gap-3 mt-6">
+        {[
+          { to: "/app/checkin", icon: ClipboardCheck, title: "Чек-ин", text: "1 минута" },
+          { to: "/app/chat", icon: MessageCircle, title: "Разговор", text: "с психологом" },
+          { to: "/app/graph", icon: Network, title: "Граф", text: "связи событий" },
+        ].map((c) => (
+          <Card key={c.to} className="ios-card p-4 hover:bg-card/80 transition-colors">
+            <Link to={c.to} className="block">
+              <c.icon className="size-5 text-primary mb-2" />
+              <div className="font-medium text-sm">{c.title}</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-between mt-0.5">
+                {c.text}
+                <ArrowRight className="size-3" />
+              </div>
+            </Link>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="ios-card p-5 mt-4">
+        <p className="mono text-[10px] uppercase tracking-widest text-primary mb-2">
+          что говорит зеркало
+        </p>
+        <p className="text-base leading-relaxed">
+          Сделай первый чек-ин — и кольца начнут оживать. Чем больше реальных данных, тем точнее
+          зеркало. <span className="text-muted-foreground">Это гипотеза. Можешь отклонить.</span>
+        </p>
+        <Button asChild size="sm" className="mt-3 rounded-full">
+          <Link to="/app/checkin">Начать чек-ин</Link>
+        </Button>
+      </Card>
     </>
   );
 };

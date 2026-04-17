@@ -2,106 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Inner Glyph Quest — Digital Exocortex design system.
-   All colors HSL. Tokens only — never hardcode in components. */
+/* Inner Glyph — iOS / watchOS inspired design system.
+   Black canvas, system colors, Activity Rings palette. HSL only. */
 
 @layer base {
   :root {
-    /* Deep ink base */
-    --background: 230 35% 6%;
-    --foreground: 220 25% 92%;
+    /* True-black canvas (watchOS / iOS dark) */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 230 30% 9%;
-    --card-foreground: 220 25% 94%;
+    /* Elevated surfaces — iOS systemGray6 dark */
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 230 30% 8%;
-    --popover-foreground: 220 25% 94%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 100%;
 
-    /* Cold cyan neon */
-    --primary: 188 95% 60%;
-    --primary-foreground: 230 50% 6%;
-    --primary-glow: 188 100% 70%;
+    /* iOS systemBlue */
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 211 100% 65%;
 
-    /* Violet accent */
-    --secondary: 268 60% 22%;
-    --secondary-foreground: 270 90% 88%;
+    /* iOS systemGray5 dark */
+    --secondary: 240 5% 18%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 230 20% 14%;
-    --muted-foreground: 225 15% 60%;
+    /* iOS systemGray dark / labelSecondary */
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 5% 64%;
 
-    --accent: 268 85% 65%;
-    --accent-foreground: 230 50% 6%;
-    --accent-glow: 285 95% 72%;
+    /* iOS systemIndigo */
+    --accent: 240 100% 65%;
+    --accent-foreground: 0 0% 100%;
+    --accent-glow: 240 100% 75%;
 
-    --destructive: 0 75% 55%;
+    /* iOS systemRed */
+    --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 230 25% 16%;
-    --input: 230 25% 14%;
-    --ring: 188 95% 60%;
+    --border: 240 5% 16%;
+    --input: 240 5% 14%;
+    --ring: 211 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Semantic state colors for glyph + dashboard */
-    --energy: 50 95% 60%;
-    --calm: 188 80% 55%;
-    --tension: 350 80% 60%;
-    --growth: 150 70% 55%;
+    /* watchOS Activity Rings — three signature colors */
+    --ring-move: 350 100% 56%;        /* pink/red — Move */
+    --ring-exercise: 95 95% 55%;      /* lime green — Exercise */
+    --ring-stand: 195 100% 55%;       /* cyan — Stand */
+
+    /* Extended life-stat palette (iOS systemColors) */
+    --stat-body: 350 100% 56%;        /* systemPink */
+    --stat-mind: 195 100% 55%;        /* systemCyan */
+    --stat-emotions: 280 90% 65%;     /* systemPurple */
+    --stat-relationships: 340 85% 62%;/* systemPink2 */
+    --stat-career: 211 100% 50%;      /* systemBlue */
+    --stat-finance: 95 95% 55%;       /* systemGreen */
+    --stat-creativity: 30 100% 55%;   /* systemOrange */
+    --stat-meaning: 50 100% 55%;      /* systemYellow */
 
     /* Gradients */
-    --gradient-aurora: linear-gradient(135deg, hsl(188 95% 60% / 0.9), hsl(268 85% 65% / 0.9));
-    --gradient-glyph: radial-gradient(circle at 30% 30%, hsl(188 95% 60% / 0.5), hsl(268 85% 65% / 0.3) 50%, transparent 75%);
-    --gradient-surface: linear-gradient(180deg, hsl(230 30% 9%), hsl(230 35% 6%));
-    --gradient-mirror: linear-gradient(135deg, hsl(230 35% 6%) 0%, hsl(268 40% 12%) 50%, hsl(188 50% 10%) 100%);
+    --gradient-move: linear-gradient(135deg, hsl(350 100% 56%), hsl(20 100% 60%));
+    --gradient-exercise: linear-gradient(135deg, hsl(95 95% 55%), hsl(160 90% 50%));
+    --gradient-stand: linear-gradient(135deg, hsl(195 100% 55%), hsl(220 100% 65%));
 
-    /* Shadows / glows */
-    --shadow-neon: 0 0 30px hsl(188 95% 60% / 0.35), 0 0 80px hsl(188 95% 60% / 0.15);
-    --shadow-violet: 0 0 30px hsl(268 85% 65% / 0.35);
-    --shadow-elevate: 0 20px 60px -20px hsl(230 70% 2% / 0.8);
-
-    /* Motion */
-    --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-
-    /* Sidebar */
-    --sidebar-background: 230 38% 5%;
-    --sidebar-foreground: 220 20% 80%;
-    --sidebar-primary: 188 95% 60%;
-    --sidebar-primary-foreground: 230 50% 6%;
-    --sidebar-accent: 230 30% 11%;
-    --sidebar-accent-foreground: 188 95% 70%;
-    --sidebar-border: 230 25% 14%;
-    --sidebar-ring: 188 95% 60%;
+    /* Sidebar (matches iOS sidebar dark) */
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 240 5% 75%;
+    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 14%;
+    --sidebar-ring: 211 100% 50%;
   }
 
-  /* Single-theme app: keep .dark identical so shadcn variants stay consistent */
   .dark {
-    --background: 230 35% 6%;
-    --foreground: 220 25% 92%;
-    --card: 230 30% 9%;
-    --card-foreground: 220 25% 94%;
-    --popover: 230 30% 8%;
-    --popover-foreground: 220 25% 94%;
-    --primary: 188 95% 60%;
-    --primary-foreground: 230 50% 6%;
-    --secondary: 268 60% 22%;
-    --secondary-foreground: 270 90% 88%;
-    --muted: 230 20% 14%;
-    --muted-foreground: 225 15% 60%;
-    --accent: 268 85% 65%;
-    --accent-foreground: 230 50% 6%;
-    --destructive: 0 75% 55%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 18%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 5% 64%;
+    --accent: 240 100% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 230 25% 16%;
-    --input: 230 25% 14%;
-    --ring: 188 95% 60%;
-    --sidebar-background: 230 38% 5%;
-    --sidebar-foreground: 220 20% 80%;
-    --sidebar-primary: 188 95% 60%;
-    --sidebar-primary-foreground: 230 50% 6%;
-    --sidebar-accent: 230 30% 11%;
-    --sidebar-accent-foreground: 188 95% 70%;
-    --sidebar-border: 230 25% 14%;
-    --sidebar-ring: 188 95% 60%;
+    --border: 240 5% 16%;
+    --input: 240 5% 14%;
+    --ring: 211 100% 50%;
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 240 5% 75%;
+    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 14%;
+    --sidebar-ring: 211 100% 50%;
   }
 }
 
@@ -118,10 +121,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(ellipse at top, hsl(268 60% 12% / 0.4), transparent 60%),
-      radial-gradient(ellipse at bottom, hsl(188 60% 10% / 0.3), transparent 60%);
-    background-attachment: fixed;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
   }
 
   ::selection {
@@ -132,39 +134,28 @@
 
 @layer components {
   .mono {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     font-feature-settings: "tnum";
   }
 
-  .glass {
-    background: hsl(var(--card) / 0.6);
-    backdrop-filter: blur(14px);
+  /* iOS-style elevated card */
+  .ios-card {
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.6);
+    border-radius: var(--radius);
   }
 
-  .neon-text {
-    color: hsl(var(--primary));
-    text-shadow: 0 0 24px hsl(var(--primary) / 0.5);
-  }
-
-  .neon-ring {
-    box-shadow: var(--shadow-neon);
-  }
-
-  .surface-elevated {
-    background: var(--gradient-surface);
-    box-shadow: var(--shadow-elevate);
+  /* iOS frosted glass material */
+  .glass {
+    background: hsl(240 6% 10% / 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid hsl(0 0% 100% / 0.08);
   }
 }
 
 @layer utilities {
-  .bg-aurora {
-    background-image: var(--gradient-aurora);
-  }
-  .bg-mirror {
-    background-image: var(--gradient-mirror);
-  }
-  .bg-glyph-radial {
-    background-image: var(--gradient-glyph);
-  }
+  .bg-move-grad { background-image: var(--gradient-move); }
+  .bg-exercise-grad { background-image: var(--gradient-exercise); }
+  .bg-stand-grad { background-image: var(--gradient-stand); }
 }

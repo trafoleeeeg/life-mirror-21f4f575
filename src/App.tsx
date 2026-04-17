@@ -3,8 +3,10 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/lib/auth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
-import Onboarding from "./pages/Onboarding";
+import Auth from "./pages/Auth";
 import { AppShell } from "./components/layout/AppShell";
 import GlyphHome from "./pages/app/GlyphHome";
 import Chat from "./pages/app/Chat";
@@ -26,23 +28,32 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/app" element={<AppShell />}>
-            <Route index element={<GlyphHome />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="checkin" element={<Checkin />} />
-            <Route path="graph" element={<Graph />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="feed" element={<Feed />} />
-            <Route path="dms" element={<DMs />} />
-            <Route path="progress" element={<Progress />} />
-            <Route path="learn" element={<Learn />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/app"
+              element={
+                <ProtectedRoute>
+                  <AppShell />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<GlyphHome />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="checkin" element={<Checkin />} />
+              <Route path="graph" element={<Graph />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="feed" element={<Feed />} />
+              <Route path="dms" element={<DMs />} />
+              <Route path="progress" element={<Progress />} />
+              <Route path="learn" element={<Learn />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

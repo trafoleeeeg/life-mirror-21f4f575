@@ -4,14 +4,23 @@ export interface UserProfile {
   name: string;
   tone: "soft" | "hard" | "socratic";
   glyph: GlyphState;
-  answers: Record<string, number>;
   createdAt: number;
 }
 
+const KEY = "ig:profile";
+
 export const loadProfile = (): UserProfile => {
   try {
-    const raw = localStorage.getItem("ig:profile");
-    if (raw) return JSON.parse(raw) as UserProfile;
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<UserProfile>;
+      return {
+        name: parsed.name ?? "Гость",
+        tone: parsed.tone ?? "soft",
+        glyph: { ...defaultGlyphState, ...(parsed.glyph as GlyphState) },
+        createdAt: parsed.createdAt ?? Date.now(),
+      };
+    }
   } catch {
     /* noop */
   }
@@ -19,11 +28,10 @@ export const loadProfile = (): UserProfile => {
     name: "Гость",
     tone: "soft",
     glyph: defaultGlyphState,
-    answers: {},
     createdAt: Date.now(),
   };
 };
 
 export const saveProfile = (p: UserProfile) => {
-  localStorage.setItem("ig:profile", JSON.stringify(p));
+  localStorage.setItem(KEY, JSON.stringify(p));
 };

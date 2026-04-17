@@ -161,7 +161,7 @@ const Dashboard = () => {
           rows={3}
         />
         <div className="flex justify-end mt-3">
-          <Button onClick={runScenario} className="shadow-neon">
+          <Button onClick={runScenario} className="">
             Построить прогноз
           </Button>
         </div>
