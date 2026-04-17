@@ -193,7 +193,7 @@ const Progress = () => {
       </PageHeader>
 
       {/* Summary */}
-      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+      <div className="grid sm:grid-cols-4 gap-3 mb-4">
         <Card className="ios-card p-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
             life score
@@ -222,11 +222,25 @@ const Progress = () => {
             )}
           </div>
         </Card>
+        <Card className="ios-card p-4 relative overflow-hidden">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            стрик пингов
+          </p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <Flame className={`size-6 ${streak > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+            <span className="text-3xl font-semibold">{streak}</span>
+            <span className="text-xs text-muted-foreground">дн</span>
+          </div>
+        </Card>
         <Card className="ios-card p-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            снимков
+            ачивок
           </p>
-          <p className="text-3xl font-semibold mt-1">{rows.length}</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <Trophy className="size-5 text-primary" />
+            <span className="text-3xl font-semibold">{unlocked.size}</span>
+            <span className="text-xs text-muted-foreground">/ {achievements.length}</span>
+          </div>
         </Card>
         <Card className="ios-card p-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
