@@ -353,10 +353,8 @@ const Feed = () => {
               <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border/40 text-xs text-muted-foreground">
                 <button
                   onClick={() => toggleLike(p.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 hover:text-foreground transition-colors",
-                    p.liked && "text-rose-500",
-                  )}
+                  className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  style={p.liked ? { color: "hsl(var(--stat-emotions))" } : undefined}
                 >
                   <Heart className={cn("size-3.5", p.liked && "fill-current")} />
                   {p.likes}
