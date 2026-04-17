@@ -1,14 +1,15 @@
-// Mirror — единый главный экран с DnD-блоками и popup-зонами.
-// Порядок блоков сохраняется в localStorage('mirror.order.v1').
+// Mirror — главная страница.
+// Новый порядок (по умолчанию): колесо → CTA чек-ин → активности → тренды → корреляция сна → история-popup → компактные KPI.
+// История-popup внутри содержит и календарь дня, и список «по дням».
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Plus, History, ListChecks } from "lucide-react";
+import { Sparkles, Plus, History, ListChecks, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { defaultGlyphState, type GlyphState } from "@/components/glyph/GlyphAvatar";
-import { BalanceWheel } from "@/components/balance/BalanceWheel";
+import { BalanceWheelAuto } from "@/components/balance/BalanceWheelAuto";
+import { SpheresEditor } from "@/components/balance/SpheresEditor";
 import { MiniCheckin } from "@/components/mirror/MiniCheckin";
 import { BulkCheckin } from "@/components/mirror/BulkCheckin";
 import { DayPicker } from "@/components/mirror/DayPicker";
@@ -17,10 +18,9 @@ import { DateRangePicker, presetToRange, type Preset } from "@/components/mirror
 import { MoodTrendChart } from "@/components/mirror/MoodTrendChart";
 import { ActivityImpact } from "@/components/dashboard/ActivityImpact";
 import { DailyBreakdown } from "@/components/dashboard/DailyBreakdown";
-import { MoodKpis } from "@/components/dashboard/MoodKpis";
+import { CompactKpis } from "@/components/dashboard/CompactKpis";
 import { FocusInsights } from "@/components/mirror/FocusInsights";
 import { SleepCorrelation } from "@/components/mirror/SleepCorrelation";
-import { CheckinsList } from "@/components/mirror/CheckinsList";
 import { SleepMiniCard } from "@/components/mirror/SleepMiniCard";
 import { PopupCard } from "@/components/mirror/PopupCard";
 import { SortableSection } from "@/components/mirror/SortableSection";
@@ -33,17 +33,16 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-const ORDER_KEY = "mirror.order.v1";
+const ORDER_KEY = "mirror.order.v2";
 const DEFAULT_ORDER = [
-  "kpi", "minirow", "focus", "analytics-header",
-  "activity", "daily", "trend", "sleep-corr", "balance", "checkins",
+  "balance", "focus", "analytics-header",
+  "activity", "trend", "sleep-corr", "history-row", "kpi",
 ] as const;
 type SectionId = typeof DEFAULT_ORDER[number];
 
 const Mirror = () => {
   const { user } = useAuth();
   const [name, setName] = useState("");
-  const [stats, setStats] = useState<GlyphState>(defaultGlyphState);
   const [todayCount, setTodayCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [seeding, setSeeding] = useState(false);
@@ -53,25 +52,19 @@ const Mirror = () => {
   const [preset, setPreset] = useState<Preset>("30d");
   const [range, setRange] = useState<DateRange>(presetToRange("30d"));
 
-  // DnD order
   const [order, setOrder] = useState<SectionId[]>(() => {
     try {
       const saved = localStorage.getItem(ORDER_KEY);
       if (!saved) return [...DEFAULT_ORDER];
       const parsed: SectionId[] = JSON.parse(saved);
-      // ensure all default sections present (forward compat)
       const merged = [...parsed.filter((id) => DEFAULT_ORDER.includes(id))];
       DEFAULT_ORDER.forEach((id) => { if (!merged.includes(id)) merged.push(id); });
       return merged;
     } catch { return [...DEFAULT_ORDER]; }
   });
-
-  useEffect(() => {
-    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
-  }, [order]);
+  useEffect(() => { localStorage.setItem(ORDER_KEY, JSON.stringify(order)); }, [order]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -86,18 +79,13 @@ const Mirror = () => {
   useEffect(() => {
     if (!user) return;
     void (async () => {
-      const [{ data: profile }, { data: gs }, { count }] = await Promise.all([
+      const [{ data: profile }, { count }] = await Promise.all([
         supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
-        supabase.from("glyph_stats")
-          .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
-          .eq("user_id", user.id).order("recorded_at", { ascending: false })
-          .limit(1).maybeSingle(),
         supabase.from("mood_pings").select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
           .gte("created_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
       ]);
       setName(profile?.display_name ?? user.email?.split("@")[0] ?? "друг");
-      if (gs) setStats(gs as GlyphState);
       setTodayCount(count ?? 0);
     })();
   }, [user, refreshKey]);
@@ -118,24 +106,30 @@ const Mirror = () => {
 
   const days = preset === "7d" ? 7 : preset === "30d" ? 30 : preset === "90d" ? 90 : preset === "365d" ? 365 : 30;
 
-  // Map id → JSX
   const sections: Record<SectionId, JSX.Element> = useMemo(() => ({
-    kpi: <MoodKpis key={`kpi-${refreshKey}`} />,
-    minirow: (
-      <div className="grid sm:grid-cols-2 gap-3">
-        <PopupCard
-          icon={<History className="size-5" />}
-          title="История"
-          subtitle="Любая дата · детали дня"
-          accentToken="--stat-emotions"
-        >
-          <div className="space-y-4">
-            <DayPicker date={day} onChange={setDay} />
-            <DayDetailCard date={day} key={`${day.toDateString()}-${refreshKey}`} />
-          </div>
-        </PopupCard>
-        <SleepMiniCard refreshKey={refreshKey} onSaved={() => setRefreshKey((k) => k + 1)} />
-      </div>
+    balance: (
+      <Card className="ios-card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            колесо баланса
+          </p>
+          <PopupCard
+            icon={<Settings2 className="size-4" />}
+            title="Сферы"
+            subtitle="Добавляй и настраивай"
+            accentToken="--primary"
+          >
+            <h2 className="text-xl font-bold mb-1">Сферы баланса</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Добавляй свои сферы и привязывай к ним ключевые слова. Когда отметишь активность с таким словом — она автоматически попадёт в эту сферу.
+            </p>
+            <SpheresEditor />
+          </PopupCard>
+        </div>
+        <div className="flex justify-center">
+          <BalanceWheelAuto size={380} refreshKey={refreshKey} />
+        </div>
+      </Card>
     ),
     focus: <FocusInsights days={7} key={`focus-${refreshKey}`} />,
     "analytics-header": (
@@ -145,22 +139,40 @@ const Mirror = () => {
       </div>
     ),
     activity: <ActivityImpact days={days} key={`act-${refreshKey}-${days}`} />,
-    daily: <DailyBreakdown days={Math.min(days, 14)} key={`db-${refreshKey}-${days}`} />,
     trend: <MoodTrendChart range={range} key={`trend-${refreshKey}`} />,
     "sleep-corr": <SleepCorrelation days={Math.max(days, 30)} key={`corr-${refreshKey}-${days}`} />,
-    balance: (
-      <Card className="ios-card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">колесо баланса</p>
-          <span className="mono text-[10px] text-muted-foreground">по чек-инам</span>
-        </div>
-        <div className="flex justify-center">
-          <BalanceWheel state={stats} size={360} />
-        </div>
-      </Card>
+    "history-row": (
+      <div className="grid sm:grid-cols-2 gap-3">
+        <PopupCard
+          icon={<History className="size-5" />}
+          title="История"
+          subtitle="Календарь · разбивка по дням"
+          accentToken="--stat-emotions"
+        >
+          <h2 className="text-xl font-bold mb-3">История</h2>
+          <div className="space-y-5">
+            <div>
+              <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
+                выбрать день
+              </p>
+              <DayPicker date={day} onChange={setDay} />
+              <div className="mt-3">
+                <DayDetailCard date={day} key={`${day.toDateString()}-${refreshKey}`} />
+              </div>
+            </div>
+            <div>
+              <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
+                последние 14 дней
+              </p>
+              <DailyBreakdown days={14} key={`db-${refreshKey}`} />
+            </div>
+          </div>
+        </PopupCard>
+        <SleepMiniCard refreshKey={refreshKey} onSaved={() => setRefreshKey((k) => k + 1)} />
+      </div>
     ),
-    checkins: <CheckinsList refreshKey={refreshKey} />,
-  }), [refreshKey, day, range, preset, days, stats]);
+    kpi: <CompactKpis key={`kpi-${refreshKey}`} />,
+  }), [refreshKey, day, range, preset, days]);
 
   return (
     <div className="space-y-5 pb-8">
@@ -178,7 +190,7 @@ const Mirror = () => {
         </Button>
       </header>
 
-      {/* Quick check-in CTA + bulk toggle */}
+      {/* Quick check-in CTA */}
       <Card className="ios-card p-4 animate-slide-up" style={{ animationDelay: "60ms", animationFillMode: "both" }}>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="size-10 rounded-full bg-primary/15 text-primary grid place-items-center shrink-0">
@@ -218,7 +230,7 @@ const Mirror = () => {
         <BulkCheckin onSaved={() => { setRefreshKey((k) => k + 1); setQuickMode("none"); }} />
       )}
 
-      {/* DnD blocks */}
+      {/* DnD */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
           <div className="space-y-5">
