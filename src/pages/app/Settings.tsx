@@ -237,6 +237,53 @@ const Settings = () => {
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl" />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="username">Никнейм</Label>
+            <div className="flex items-center gap-2">
+              <span className="mono text-muted-foreground text-sm">@</span>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="my_handle"
+                className="h-11 rounded-xl flex-1"
+                maxLength={24}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              3–24 символа: латиница, цифры, _. Будет твоей публичной страницей{" "}
+              {username && (
+                <Link to={`/app/u/${username.toLowerCase()}`} className="text-primary underline-offset-2 hover:underline">
+                  /u/{username.toLowerCase()}
+                </Link>
+              )}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="bio">О себе</Label>
+            <Textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Коротко о тебе — видно другим участникам"
+              rows={2}
+              maxLength={160}
+              className="resize-none rounded-xl"
+            />
+            <p className="text-xs text-muted-foreground text-right">{bio.length}/160</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>ID пользователя</Label>
+            <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-xl">
+              <code className="mono text-xs flex-1 truncate select-all">{user?.id}</code>
+              <Button size="sm" variant="ghost" onClick={copyId} className="h-7 shrink-0">
+                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Тон AI-психолога</Label>
             <div className="grid sm:grid-cols-3 gap-2">
