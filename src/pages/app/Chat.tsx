@@ -425,6 +425,9 @@ const Chat = () => {
         description="Говори свободно. AI помнит контекст и может обновлять твои статы."
       >
         <div className="flex flex-wrap gap-1">
+          <Button size="sm" variant="outline" onClick={() => setDossierOpen(true)} className="rounded-full">
+            <FileText className="size-4 mr-1.5" />Личное дело
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -445,6 +448,8 @@ const Chat = () => {
           ))}
         </div>
       </PageHeader>
+
+      <DossierPanel open={dossierOpen} onClose={() => setDossierOpen(false)} />
 
       <div className="grid md:grid-cols-[220px,1fr] gap-3 flex-1 min-h-0">
         {/* Sessions sidebar (desktop) */}
