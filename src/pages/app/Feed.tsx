@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Heart, MessageSquare, Filter, Flame, Loader2, Trash2, Send } from "lucide-react";
+import { Heart, MessageSquare, Filter, Flame, Loader2, Trash2, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -29,10 +29,12 @@ const CAT_TONE: Record<string, string> = {
 
 interface Post {
   id: string;
-  user_id: string;
+  user_id: string | null;
   category: string;
   content: string;
   created_at: string;
+  is_ai: boolean;
+  ai_author: string | null;
   author_name: string;
   likes: number;
   comments: number;
@@ -71,28 +73,33 @@ const Feed = () => {
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [commentDraft, setCommentDraft] = useState("");
 
-  const load = async () => {
-    setLoading(true);
-    const { data: rawPosts, error } = await supabase
-      .from("posts")
-      .select("id,user_id,category,content,created_at")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      toast.error("Не удалось загрузить ленту");
-      setLoading(false);
-      return;
-    }
-    const ids = (rawPosts || []).map((p) => p.id);
-    const userIds = Array.from(new Set((rawPosts || []).map((p) => p.user_id)));
+  const enrichPosts = async (
+    rawPosts: Array<{
+      id: string;
+      user_id: string | null;
+      category: string;
+      content: string;
+      created_at: string;
+      is_ai: boolean;
+      ai_author: string | null;
+    }>,
+  ): Promise<Post[]> => {
+    const ids = rawPosts.map((p) => p.id);
+    const userIds = Array.from(new Set(rawPosts.map((p) => p.user_id).filter((x): x is string => !!x)));
 
     const [profilesRes, likesRes, myLikesRes, commentsCountRes] = await Promise.all([
-      supabase.from("public_profiles").select("user_id,display_name").in("user_id", userIds),
-      supabase.from("post_likes").select("post_id").in("post_id", ids),
-      user
+      userIds.length
+        ? supabase.from("public_profiles").select("user_id,display_name").in("user_id", userIds)
+        : Promise.resolve({ data: [] as { user_id: string; display_name: string | null }[] }),
+      ids.length
+        ? supabase.from("post_likes").select("post_id").in("post_id", ids)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
+      user && ids.length
         ? supabase.from("post_likes").select("post_id").in("post_id", ids).eq("user_id", user.id)
         : Promise.resolve({ data: [] as { post_id: string }[] }),
-      supabase.from("post_comments").select("post_id").in("post_id", ids),
+      ids.length
+        ? supabase.from("post_comments").select("post_id").in("post_id", ids)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
     ]);
 
     const nameMap = new Map((profilesRes.data || []).map((p) => [p.user_id, p.display_name || "аноним"]));
@@ -104,15 +111,30 @@ const Feed = () => {
     );
     const mySet = new Set((myLikesRes.data || []).map((l) => l.post_id));
 
-    setPosts(
-      (rawPosts || []).map((p) => ({
-        ...p,
-        author_name: nameMap.get(p.user_id) || "аноним",
-        likes: likesMap.get(p.id) || 0,
-        comments: commentsMap.get(p.id) || 0,
-        liked: mySet.has(p.id),
-      })),
-    );
+    return rawPosts.map((p) => ({
+      ...p,
+      author_name: p.is_ai
+        ? p.ai_author || "AI · Дилемма дня"
+        : (p.user_id && nameMap.get(p.user_id)) || "аноним",
+      likes: likesMap.get(p.id) || 0,
+      comments: commentsMap.get(p.id) || 0,
+      liked: mySet.has(p.id),
+    }));
+  };
+
+  const load = async () => {
+    setLoading(true);
+    const { data: rawPosts, error } = await supabase
+      .from("posts")
+      .select("id,user_id,category,content,created_at,is_ai,ai_author")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      toast.error("Не удалось загрузить ленту");
+      setLoading(false);
+      return;
+    }
+    setPosts(await enrichPosts(rawPosts || []));
     setLoading(false);
   };
 
@@ -120,6 +142,83 @@ const Feed = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Realtime: новые посты, лайки, комментарии
+  useEffect(() => {
+    const channel = supabase
+      .channel("feed-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts" },
+        async (payload) => {
+          const row = payload.new as {
+            id: string; user_id: string | null; category: string; content: string;
+            created_at: string; is_ai: boolean; ai_author: string | null;
+          };
+          // Не дублируем — если уже есть локально (после своего insert), пропускаем
+          setPosts((prev) => {
+            if (prev.some((p) => p.id === row.id)) return prev;
+            return prev;
+          });
+          const enriched = await enrichPosts([row]);
+          setPosts((prev) => (prev.some((p) => p.id === row.id) ? prev : [enriched[0], ...prev]));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "posts" },
+        (payload) => {
+          const id = (payload.old as { id: string }).id;
+          setPosts((prev) => prev.filter((p) => p.id !== id));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "post_likes" },
+        (payload) => {
+          const { post_id, user_id: likerId } = payload.new as { post_id: string; user_id: string };
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === post_id
+                ? { ...p, likes: p.likes + 1, liked: likerId === user?.id ? true : p.liked }
+                : p,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "post_likes" },
+        (payload) => {
+          const { post_id, user_id: likerId } = payload.old as { post_id: string; user_id: string };
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === post_id
+                ? { ...p, likes: Math.max(0, p.likes - 1), liked: likerId === user?.id ? false : p.liked }
+                : p,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "post_comments" },
+        async (payload) => {
+          const { post_id } = payload.new as { post_id: string; user_id: string; content: string; id: string; created_at: string };
+          setPosts((prev) =>
+            prev.map((p) => (p.id === post_id ? { ...p, comments: p.comments + 1 } : p)),
+          );
+          // Если открыты комменты этого поста — перезагрузим
+          if (openComments === post_id) await loadComments(post_id);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, openComments]);
 
   const visible = useMemo(() => {
     const filtered = filter === "все" ? posts : posts.filter((p) => p.category === filter);
@@ -148,19 +247,17 @@ const Feed = () => {
     }
     setDraft("");
     toast.success("Опубликовано");
-    load();
+    // Realtime сам подхватит новый пост
   };
 
   const toggleLike = async (p: Post) => {
     if (!user) return;
-    // optimistic
-    setPosts((prev) =>
-      prev.map((x) => (x.id === p.id ? { ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) } : x)),
-    );
+    // Realtime сам обновит счётчик и `liked` — поэтому без оптимистичного инкремента
     if (p.liked) {
       await supabase.from("post_likes").delete().eq("post_id", p.id).eq("user_id", user.id);
     } else {
-      await supabase.from("post_likes").insert({ post_id: p.id, user_id: user.id });
+      const { error } = await supabase.from("post_likes").insert({ post_id: p.id, user_id: user.id });
+      if (error && !String(error.message).includes("duplicate")) toast.error("Не удалось");
     }
   };
 
@@ -208,7 +305,7 @@ const Feed = () => {
     if (error) return toast.error("Не удалось отправить");
     setCommentDraft("");
     await loadComments(postId);
-    setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, comments: x.comments + 1 } : x)));
+    // Счётчик обновится через realtime
   };
 
   return (
@@ -302,12 +399,25 @@ const Feed = () => {
             const isMine = user?.id === p.user_id;
             const isOpen = openComments === p.id;
             return (
-              <Card key={p.id} className="ios-card p-5 transition-shadow hover:shadow-md">
+              <Card
+                key={p.id}
+                className={cn(
+                  "ios-card p-5 transition-shadow hover:shadow-md",
+                  p.is_ai && "border-primary/40",
+                )}
+                style={p.is_ai ? { background: "hsl(var(--primary) / 0.04)" } : undefined}
+              >
                 <div className="flex items-center gap-2 mb-3">
-                  <div
-                    className="size-8 rounded-full shrink-0"
-                    style={{ background: `hsl(${tone} / 0.7)` }}
-                  />
+                  {p.is_ai ? (
+                    <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <Sparkles className="size-4 text-primary" />
+                    </div>
+                  ) : (
+                    <div
+                      className="size-8 rounded-full shrink-0"
+                      style={{ background: `hsl(${tone} / 0.7)` }}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{p.author_name}</div>
                     <div className="mono text-[10px] text-muted-foreground">{ago(p.created_at)}</div>
