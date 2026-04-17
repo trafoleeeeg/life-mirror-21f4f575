@@ -277,6 +277,7 @@ const Chat = () => {
           )
           .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at)),
       );
+      bumpAutoExtract();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Сеть недоступна");
     } finally {
