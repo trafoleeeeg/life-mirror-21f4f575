@@ -8,6 +8,7 @@
 //   • Сравнение с предыдущим периодом
 //   • Карта связей с подсветкой и группировкой
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,11 @@ import {
   ToggleGroupItem,
 } from "@/components/ui/toggle-group";
 import {
+  Tooltip, TooltipTrigger, TooltipContent,
+} from "@/components/ui/tooltip";
+import {
   Sparkles, RefreshCw, TrendingUp, TrendingDown, Flame, Waves, Pin,
-  ArrowUpRight, ArrowDownRight, Minus, EyeOff, Lightbulb,
+  ArrowUpRight, ArrowDownRight, Minus, EyeOff, Lightbulb, HelpCircle, AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +33,7 @@ import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
 import {
   computeBaseline, computeImpact, computeCombos, computeRecommendations,
   compareImpactPeriods, filterByDays, computeEntitySeries,
+  formatDelta, formatDays, formatTrend, reliability,
   type PeriodDays, type ImpactRow, type ComboRow, type EntitySeriesPoint,
 } from "@/lib/lifeMap";
 import { EntityManager } from "@/components/graph/EntityManager";
