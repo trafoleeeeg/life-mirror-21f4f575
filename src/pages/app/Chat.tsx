@@ -15,6 +15,8 @@ import {
   X,
   Search,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
