@@ -432,6 +432,12 @@ const Graph = () => {
           )}
 
           {/* === ЗАРЯЖАЕТ / ИСТОЩАЕТ === */}
+          {(charging.length > 0 || draining.length > 0) && (
+            <div className="flex items-center justify-between gap-3 flex-wrap -mb-1">
+              <ImpactSummary charging={charging} draining={draining} period={period} />
+              <MetricsLegend />
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <ImpactCard
               title="Заряжает"
@@ -656,41 +662,139 @@ const ImpactRowItem = ({
   const TrendArrow = row.trend > 0.3 ? ArrowUpRight : row.trend < -0.3 ? ArrowDownRight : Minus;
   const trendColor = row.trend > 0.3 ? "var(--ring-exercise)" : row.trend < -0.3 ? "var(--stat-body)" : "var(--muted-foreground)";
   const sparkTone = row.delta >= 0.2 ? "up" : row.delta <= -0.2 ? "down" : "neutral";
+  const rel = reliability(row.daysCount);
+  const lowRel = rel === "low";
+
   return (
     <li className="group">
-      <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-secondary/50 transition-colors">
-        <button onClick={() => onPick(row.ent)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-          {row.ent.pinned && <Pin className="size-3 text-primary shrink-0" />}
-          <span className="size-2 rounded-full shrink-0" style={{ background: `hsl(${TYPE_TOKEN[row.ent.type]})` }} />
-          <span className="font-medium truncate flex-1">{displayLabel(row.ent)}</span>
-          {series && series.length > 0 && (
-            <EntitySparkline series={series} tone={sparkTone} />
-          )}
-          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-            {row.avg?.toFixed(1)} · {row.daysCount}d
-          </span>
-          <span className="flex items-center gap-0.5 text-xs font-medium tabular-nums shrink-0" style={{ color: `hsl(${tone})` }}>
-            <Trend className="size-3" />
+      <div
+        className={cn(
+          "p-3 -mx-2 rounded-xl border border-transparent hover:border-border/60 hover:bg-secondary/40 transition-colors",
+          lowRel && "opacity-60",
+        )}
+      >
+        {/* Уровень 1: название + цифры */}
+        <div className="flex items-start gap-2">
+          <button
+            onClick={() => onPick(row.ent)}
+            className="flex items-center gap-2 flex-1 min-w-0 text-left"
+          >
+            {row.ent.pinned && <Pin className="size-3 text-primary shrink-0" />}
+            <span
+              className="size-2 rounded-full shrink-0"
+              style={{ background: `hsl(${TYPE_TOKEN[row.ent.type]})` }}
+            />
+            <span className="font-medium truncate flex-1">{displayLabel(row.ent)}</span>
+            {lowRel && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertCircle className="size-3 text-muted-foreground shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-[200px]">
+                  Мало данных ({formatDays(row.daysCount)}). Цифры могут меняться по мере чек-инов.
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </button>
+          <span
+            className="flex items-center gap-1 text-sm font-semibold tabular-nums shrink-0"
+            style={{ color: `hsl(${tone})` }}
+          >
+            <Trend className="size-3.5" />
             {row.delta > 0 ? "+" : ""}{row.delta.toFixed(1)}
           </span>
-          <span
-            title={`Тренд: ${row.trend > 0 ? "+" : ""}${row.trend.toFixed(1)}`}
-            className="flex items-center text-[10px] tabular-nums shrink-0"
-            style={{ color: `hsl(${trendColor})` }}
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(row.ent); }}
+            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0 px-1"
+            title="Настроить"
           >
+            ⋯
+          </button>
+        </div>
+
+        {/* Подзаголовок: человеко-читаемый текст */}
+        <div className="mt-1 ml-4 text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+          <span style={{ color: `hsl(${tone})` }}>{formatDelta(row.delta)}</span>
+          <span aria-hidden>·</span>
+          <span>{formatDays(row.daysCount)} с этим</span>
+          <span aria-hidden>·</span>
+          <span className="flex items-center gap-0.5" style={{ color: `hsl(${trendColor})` }}>
             <TrendArrow className="size-3" />
+            {formatTrend(row.trend)}
           </span>
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(row.ent); }}
-          className="opacity-0 group-hover:opacity-100 text-[10px] text-muted-foreground hover:text-foreground transition-opacity shrink-0"
-        >
-          ⋯
-        </button>
+        </div>
+
+        {/* Уровень 2: sparkline + timeline на всю ширину */}
+        {series && series.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onPick(row.ent)}
+            className="mt-2 w-full block"
+            aria-label="Открыть детали"
+          >
+            <EntitySparkline
+              series={series}
+              tone={sparkTone}
+              width={600}
+              height={28}
+              className="w-full h-7"
+            />
+          </button>
+        )}
       </div>
     </li>
   );
 };
+
+// Краткое summary над рейтингом «Заряжает / Истощает»
+const ImpactSummary = ({
+  charging, draining, period,
+}: { charging: ImpactRow[]; draining: ImpactRow[]; period: number }) => {
+  const top = charging[0];
+  const bottom = draining[0];
+  if (!top && !bottom) return null;
+  return (
+    <div className="px-1 text-sm text-muted-foreground leading-relaxed">
+      <span>За {period} дн.{" "}</span>
+      {top && (
+        <>
+          тебя больше всего заряжает{" "}
+          <span className="font-medium text-foreground">{displayLabel(top.ent)}</span>
+          {" "}<span style={{ color: "hsl(var(--ring-exercise))" }}>(+{top.delta.toFixed(1)})</span>
+        </>
+      )}
+      {top && bottom && <span>, истощает </span>}
+      {!top && bottom && <span>тебя больше всего истощает </span>}
+      {bottom && (
+        <>
+          <span className="font-medium text-foreground">{displayLabel(bottom.ent)}</span>
+          {" "}<span style={{ color: "hsl(var(--stat-body))" }}>({bottom.delta.toFixed(1)})</span>
+        </>
+      )}
+      .
+    </div>
+  );
+};
+
+// Tooltip с расшифровкой base/delta/trend
+const MetricsLegend = () => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <HelpCircle className="size-3.5" />
+        что значат цифры
+      </button>
+    </TooltipTrigger>
+    <TooltipContent side="bottom" className="text-xs max-w-[260px] space-y-1.5 leading-relaxed">
+      <p><span className="font-semibold text-foreground">base</span> — твой средний mood за период.</p>
+      <p><span className="font-semibold text-foreground">delta</span> — насколько mood в дни с этой сущностью отличается от base. + поднимает, − снижает.</p>
+      <p><span className="font-semibold text-foreground">trend</span> — динамика: становится лучше или хуже за последнее время.</p>
+    </TooltipContent>
+  </Tooltip>
+);
 
 const ImpactCard = ({
   title, icon, tone, items, baseline, seriesMap, onPick, onEdit,
@@ -707,7 +811,7 @@ const ImpactCard = ({
   const accent = tone === "up" ? "var(--ring-exercise)" : "var(--stat-body)";
   return (
     <Card className="ios-card p-5">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <div className="flex items-center gap-2">
           <span
             className="size-7 rounded-lg flex items-center justify-center"
@@ -718,9 +822,16 @@ const ImpactCard = ({
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>
         </div>
         {baseline != null && (
-          <span className="text-[11px] text-muted-foreground">
-            base: <span className="tabular-nums">{baseline.toFixed(1)}</span>
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[11px] text-muted-foreground cursor-help">
+                base <span className="tabular-nums">{baseline.toFixed(1)}</span>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-[220px]">
+              Средний mood за период — точка отсчёта. Все «+» и «−» считаются от неё.
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
       {items.length === 0 ? (
@@ -728,7 +839,7 @@ const ImpactCard = ({
           Пока недостаточно данных. Делай чек-ины с заметками — и сущности проявятся здесь.
         </p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1">
           {items.map((row) => (
             <ImpactRowItem
               key={row.ent.id}

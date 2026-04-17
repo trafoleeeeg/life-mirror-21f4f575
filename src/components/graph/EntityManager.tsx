@@ -1,5 +1,5 @@
 // Drawer для управления одной сущностью: rename, type, category, pin, hide, merge, delete.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Pin, Eye, EyeOff, Trash2, Combine } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DbEntity, EntityType } from "@/types/lifeMap";
+import { useAuth } from "@/lib/auth";
+import { computeEntitySeries, formatDays } from "@/lib/lifeMap";
+import { EntitySparkline } from "@/components/graph/EntitySparkline";
+import type { DbEntity, EntityType, PingRow, CheckinRow } from "@/types/lifeMap";
 import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
 
 interface Props {
@@ -29,6 +32,7 @@ interface Props {
 }
 
 export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }: Props) => {
+  const { user } = useAuth();
   const [label, setLabel] = useState("");
   const [type, setType] = useState<EntityType>("topic");
   const [category, setCategory] = useState("");
@@ -36,6 +40,8 @@ export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }:
   const [hidden, setHidden] = useState(false);
   const [mergeWith, setMergeWith] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [pings, setPings] = useState<PingRow[]>([]);
+  const [checkins, setCheckins] = useState<CheckinRow[]>([]);
 
   useEffect(() => {
     if (!entity) return;
@@ -46,6 +52,29 @@ export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }:
     setHidden(!!entity.hidden);
     setMergeWith("");
   }, [entity]);
+
+  // Тянем данные за 30 дней для динамики, только когда drawer открыт
+  useEffect(() => {
+    if (!open || !user) return;
+    const since = new Date(Date.now() - 30 * 86400_000).toISOString();
+    void Promise.all([
+      supabase.from("mood_pings")
+        .select("created_at,mood,note,activities")
+        .eq("user_id", user.id).gte("created_at", since),
+      supabase.from("checkins")
+        .select("created_at,mood,note,intent,tags")
+        .eq("user_id", user.id).gte("created_at", since),
+    ]).then(([mp, ch]) => {
+      setPings((mp.data ?? []) as PingRow[]);
+      setCheckins((ch.data ?? []) as CheckinRow[]);
+    });
+  }, [open, user]);
+
+  const series = useMemo(
+    () => entity ? computeEntitySeries(entity, pings, checkins, 30) : [],
+    [entity, pings, checkins],
+  );
+  const mentionDays = series.filter((s) => s.mentioned).length;
 
   if (!entity) return null;
 
@@ -125,6 +154,22 @@ export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }:
         </SheetHeader>
 
         <div className="mt-5 space-y-5">
+          {/* Динамика за 30 дней */}
+          {series.length > 0 && (
+            <div className="rounded-xl border bg-secondary/30 p-3 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span className="uppercase tracking-wider">за 30 дней</span>
+                <span>{formatDays(mentionDays)} с упоминанием</span>
+              </div>
+              <EntitySparkline
+                series={series}
+                tone="neutral"
+                width={600}
+                height={36}
+                className="w-full h-9"
+              />
+            </div>
+          )}
           <div>
             <Label htmlFor="ent-label" className="text-xs">Название</Label>
             <Input
