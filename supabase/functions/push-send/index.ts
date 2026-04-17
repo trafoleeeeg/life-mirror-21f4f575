@@ -56,6 +56,13 @@ function inWindow(pref: Pref): boolean {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Auth: require shared secret (set via CRON_SECRET) — used by pg_cron caller.
+  const expected = Deno.env.get("CRON_SECRET");
+  const provided = req.headers.get("x-cron-secret");
+  if (!expected || provided !== expected) {
+    return new Response("Forbidden", { status: 403, headers: corsHeaders });
+  }
+
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -117,11 +124,12 @@ Deno.serve(async (req) => {
         .eq("user_id", pref.user_id);
     }
 
-    return new Response(JSON.stringify({ sent, skipped, dropped }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+    console.error("push-send error", e);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

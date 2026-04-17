@@ -476,9 +476,34 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      _internal_compute_ping_streak: {
+        Args: { _user: string }
+        Returns: number
+      }
+      _internal_unlock: {
+        Args: { _code: string; _user: string }
+        Returns: undefined
+      }
       compute_ping_streak: { Args: { _user: string }; Returns: number }
       try_unlock: { Args: { _code: string; _user: string }; Returns: undefined }
     }
