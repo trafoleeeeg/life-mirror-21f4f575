@@ -445,6 +445,95 @@ export type Database = {
         }
         Relationships: []
       }
+      sleep_events: {
+        Row: {
+          event_type: string
+          id: string
+          magnitude: number
+          session_id: string
+          ts: string
+          user_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          magnitude?: number
+          session_id: string
+          ts?: string
+          user_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          magnitude?: number
+          session_id?: string
+          ts?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sleep_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sleep_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sleep_sessions: {
+        Row: {
+          avg_loudness: number | null
+          created_at: string
+          duration_minutes: number | null
+          ended_at: string | null
+          id: string
+          interruptions: number
+          notes: string | null
+          quality: number | null
+          smart_wake: boolean
+          started_at: string
+          updated_at: string
+          user_id: string
+          wake_window_end: string | null
+          wake_window_start: string | null
+          woken_at: string | null
+        }
+        Insert: {
+          avg_loudness?: number | null
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          interruptions?: number
+          notes?: string | null
+          quality?: number | null
+          smart_wake?: boolean
+          started_at: string
+          updated_at?: string
+          user_id: string
+          wake_window_end?: string | null
+          wake_window_start?: string | null
+          woken_at?: string | null
+        }
+        Update: {
+          avg_loudness?: number | null
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          interruptions?: number
+          notes?: string | null
+          quality?: number | null
+          smart_wake?: boolean
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+          wake_window_end?: string | null
+          wake_window_start?: string | null
+          woken_at?: string | null
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achievement_id: string
