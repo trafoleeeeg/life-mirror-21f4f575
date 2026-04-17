@@ -432,6 +432,12 @@ const Graph = () => {
           )}
 
           {/* === ЗАРЯЖАЕТ / ИСТОЩАЕТ === */}
+          {(charging.length > 0 || draining.length > 0) && (
+            <div className="flex items-center justify-between gap-3 flex-wrap -mb-1">
+              <ImpactSummary charging={charging} draining={draining} period={period} />
+              <MetricsLegend />
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <ImpactCard
               title="Заряжает"

@@ -6,9 +6,10 @@ interface Props {
   width?: number;
   height?: number;
   tone?: "up" | "down" | "neutral";
+  className?: string;
 }
 
-export const EntitySparkline = ({ series, width = 96, height = 22, tone = "neutral" }: Props) => {
+export const EntitySparkline = ({ series, width = 96, height = 22, tone = "neutral", className }: Props) => {
   if (!series.length) return null;
   const stroke =
     tone === "up" ? "var(--ring-exercise)" : tone === "down" ? "var(--stat-body)" : "var(--muted-foreground)";
@@ -38,7 +39,8 @@ export const EntitySparkline = ({ series, width = 96, height = 22, tone = "neutr
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
-      className="shrink-0"
+      preserveAspectRatio="none"
+      className={className ?? "shrink-0"}
       aria-hidden
     >
       {/* Маркеры упоминаний — тонкие столбики снизу */}
