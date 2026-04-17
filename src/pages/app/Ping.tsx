@@ -178,11 +178,39 @@ const Ping = () => {
       note: note.trim() || null,
       source,
     });
-    setSaving(false);
     if (error) {
+      setSaving(false);
       toast.error(error.message);
       return;
     }
+
+    // Recompute stats: pings affect emotions/body/mind as a mini-signal
+    const [{ data: history }, { data: pingHistory }, { data: lastStats }] = await Promise.all([
+      supabase
+        .from("checkins")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("mood_pings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("glyph_stats")
+        .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
+        .eq("user_id", user.id)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    const base = (lastStats as typeof defaultGlyphState | null) ?? defaultGlyphState;
+    const next = computeStatsFromCheckins(history ?? [], base, pingHistory ?? []);
+    await supabase.from("glyph_stats").insert({ user_id: user.id, ...next });
+
+    setSaving(false);
     toast.success("Записано в зеркало");
     navigate("/app");
   };
