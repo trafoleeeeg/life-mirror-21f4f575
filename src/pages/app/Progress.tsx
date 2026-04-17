@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Heatmap } from "@/components/Heatmap";
 import { STAT_META, STAT_ORDER, StatKey, defaultGlyphState } from "@/components/glyph/GlyphAvatar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +37,7 @@ const Progress = () => {
   const [range, setRange] = useState<Range>(30);
   const [rows, setRows] = useState<StatRow[]>([]);
   const [active, setActive] = useState<Set<StatKey>>(new Set(STAT_ORDER));
+  const [checkinDates, setCheckinDates] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -48,6 +50,17 @@ const Progress = () => {
       .order("recorded_at", { ascending: true })
       .then(({ data }) => setRows((data || []) as StatRow[]));
   }, [user, range]);
+
+  useEffect(() => {
+    if (!user) return;
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+    supabase
+      .from("checkins")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .gte("created_at", since)
+      .then(({ data }) => setCheckinDates((data || []).map((c) => c.created_at)));
+  }, [user]);
 
   const chartData = useMemo(() => {
     return rows.map((r) => {
