@@ -22,9 +22,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Set up listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setLoading(false);
+      // Логируем вход (best-effort, не блокируем UI)
+      if (event === "SIGNED_IN" && s?.user) {
+        import("@/lib/logAuthEvent").then(({ logAuthEvent }) =>
+          logAuthEvent(s.user.id, "login"),
+        );
+      }
     });
     // Then fetch existing session
     supabase.auth.getSession().then(({ data }) => {
