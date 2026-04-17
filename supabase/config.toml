@@ -2,3 +2,6 @@ project_id = "efzzafhysdlrowcxelyx"
 
 [functions.chat]
 verify_jwt = true
+
+[functions.extract-graph]
+verify_jwt = true
