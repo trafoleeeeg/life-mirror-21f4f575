@@ -25,6 +25,7 @@ import Ping from "./pages/app/Ping";
 import Admin from "./pages/app/Admin";
 import UserProfile from "./pages/app/UserProfile";
 import Me from "./pages/app/Me";
+import PostThread from "./pages/app/PostThread";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="admin" element={<Admin />} />
               <Route path="me" element={<Me />} />
               <Route path="u/:username" element={<UserProfile />} />
+              <Route path="post/:id" element={<PostThread />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
