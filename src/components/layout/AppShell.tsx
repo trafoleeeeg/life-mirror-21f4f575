@@ -1,6 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
-  Sparkles,
   MessageCircle,
   Moon,
   Network,
@@ -14,10 +13,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Primary tabs shown on mobile bottom bar (5 max — iOS guideline). */
+/** Primary tabs shown on mobile bottom bar (4 max). */
 const primary = [
   { to: "/app", label: "Зеркало", icon: LineChart, end: true },
-  { to: "/app/glyph", label: "Глиф", icon: Sparkles },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
   { to: "/app/graph", label: "Граф", icon: Network },
   { to: "/app/settings", label: "Я", icon: User },
@@ -26,7 +24,6 @@ const primary = [
 /** Full nav shown in desktop sidebar. */
 const sidebarNav = [
   { to: "/app", label: "Зеркало", icon: LineChart, end: true },
-  { to: "/app/glyph", label: "Глиф", icon: Sparkles },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
   { to: "/app/graph", label: "Граф", icon: Network },
   { to: "/app/sleep", label: "Сон", icon: Moon },
@@ -116,7 +113,7 @@ export const AppShell = () => {
         className="md:hidden fixed bottom-0 inset-x-0 z-30 glass pb-safe"
         aria-label="Главная навигация"
       >
-        <div className="grid grid-cols-5 px-1 pt-1.5">
+        <div className="grid grid-cols-4 px-1 pt-1.5">
           {primary.map((item) => (
             <NavLink
               key={item.to}

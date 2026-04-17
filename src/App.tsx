@@ -9,7 +9,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Install from "./pages/Install";
 import { AppShell } from "./components/layout/AppShell";
-import GlyphHome from "./pages/app/GlyphHome";
+
 import Chat from "./pages/app/Chat";
 import Checkin from "./pages/app/Checkin";
 import Graph from "./pages/app/Graph";
@@ -47,7 +47,7 @@ const App = () => (
               }
             >
               <Route index element={<Mirror />} />
-              <Route path="glyph" element={<GlyphHome />} />
+              <Route path="glyph" element={<Navigate to="/app" replace />} />
               <Route path="chat" element={<Chat />} />
               <Route path="checkin" element={<Navigate to="/app?tab=today" replace />} />
               <Route path="graph" element={<Graph />} />
