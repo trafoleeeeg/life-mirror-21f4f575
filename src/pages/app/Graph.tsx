@@ -91,6 +91,65 @@ const Graph = () => {
     })();
   }, [user]);
 
+  // Load real check-ins / chat messages mentioning the selected entity
+  useEffect(() => {
+    if (!user || !selected) {
+      setContext([]);
+      return;
+    }
+    let cancelled = false;
+    setContextLoading(true);
+    (async () => {
+      const label = selected.label;
+      const pattern = `%${label}%`;
+      const [checkinsResp, chatResp] = await Promise.all([
+        supabase
+          .from("checkins")
+          .select("id, mode, intent, note, tags, created_at")
+          .eq("user_id", user.id)
+          .or(`note.ilike.${pattern},intent.ilike.${pattern},tags.cs.{${label.toLowerCase()}}`)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("chat_messages")
+          .select("id, role, content, created_at")
+          .eq("user_id", user.id)
+          .ilike("content", pattern)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
+
+      if (cancelled) return;
+      const items: ContextItem[] = [];
+      for (const c of checkinsResp.data || []) {
+        const text = [c.intent, c.note].filter(Boolean).join(" · ") ||
+          (c.tags?.length ? `теги: ${c.tags.join(", ")}` : "(без текста)");
+        items.push({
+          id: `c-${c.id}`,
+          kind: "checkin",
+          text,
+          date: c.created_at,
+          meta: c.mode,
+        });
+      }
+      for (const m of chatResp.data || []) {
+        items.push({
+          id: `m-${m.id}`,
+          kind: "chat",
+          text: m.content,
+          date: m.created_at,
+          meta: m.role === "user" ? "ты" : "ai",
+        });
+      }
+      items.sort((a, b) => +new Date(b.date) - +new Date(a.date));
+      setContext(items.slice(0, 30));
+      setContextLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, selected]);
+
   // Physics
   useEffect(() => {
     if (!nodes.length) return;
