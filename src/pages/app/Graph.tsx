@@ -622,12 +622,18 @@ const Graph = () => {
 // === СУБ-КОМПОНЕНТЫ ===
 
 const ImpactRowItem = ({
-  row, onPick, onEdit,
-}: { row: ImpactRow; onPick: (e: DbEntity) => void; onEdit: (e: DbEntity) => void }) => {
+  row, series, onPick, onEdit,
+}: {
+  row: ImpactRow;
+  series?: EntitySeriesPoint[];
+  onPick: (e: DbEntity) => void;
+  onEdit: (e: DbEntity) => void;
+}) => {
   const tone = row.delta >= 0 ? "var(--ring-exercise)" : "var(--stat-body)";
   const Trend = row.delta >= 0 ? TrendingUp : TrendingDown;
   const TrendArrow = row.trend > 0.3 ? ArrowUpRight : row.trend < -0.3 ? ArrowDownRight : Minus;
   const trendColor = row.trend > 0.3 ? "var(--ring-exercise)" : row.trend < -0.3 ? "var(--stat-body)" : "var(--muted-foreground)";
+  const sparkTone = row.delta >= 0.2 ? "up" : row.delta <= -0.2 ? "down" : "neutral";
   return (
     <li className="group">
       <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-secondary/50 transition-colors">
@@ -635,6 +641,9 @@ const ImpactRowItem = ({
           {row.ent.pinned && <Pin className="size-3 text-primary shrink-0" />}
           <span className="size-2 rounded-full shrink-0" style={{ background: `hsl(${TYPE_TOKEN[row.ent.type]})` }} />
           <span className="font-medium truncate flex-1">{displayLabel(row.ent)}</span>
+          {series && series.length > 0 && (
+            <EntitySparkline series={series} tone={sparkTone} />
+          )}
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
             {row.avg?.toFixed(1)} · {row.daysCount}d
           </span>
@@ -662,13 +671,14 @@ const ImpactRowItem = ({
 };
 
 const ImpactCard = ({
-  title, icon, tone, items, baseline, onPick, onEdit,
+  title, icon, tone, items, baseline, seriesMap, onPick, onEdit,
 }: {
   title: string;
   icon: React.ReactNode;
   tone: "up" | "down";
   items: ImpactRow[];
   baseline: number | null;
+  seriesMap: Map<string, EntitySeriesPoint[]>;
   onPick: (e: DbEntity) => void;
   onEdit: (e: DbEntity) => void;
 }) => {
@@ -698,7 +708,13 @@ const ImpactCard = ({
       ) : (
         <ul className="space-y-1.5">
           {items.map((row) => (
-            <ImpactRowItem key={row.ent.id} row={row} onPick={onPick} onEdit={onEdit} />
+            <ImpactRowItem
+              key={row.ent.id}
+              row={row}
+              series={seriesMap.get(row.ent.id)}
+              onPick={onPick}
+              onEdit={onEdit}
+            />
           ))}
         </ul>
       )}
