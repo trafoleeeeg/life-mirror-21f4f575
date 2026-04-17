@@ -399,7 +399,7 @@ const Graph = () => {
           )}
         </Card>
 
-        <Card className="ios-card p-4">
+        <Card className="ios-card p-4 max-h-[600px] overflow-y-auto">
           {selected ? (
             <div className="space-y-3">
               <div>
@@ -441,10 +441,49 @@ const Graph = () => {
                     })}
                 </ul>
               </div>
+
+              <div className="border-t border-border/60 pt-3">
+                <p className="mono text-[10px] uppercase tracking-widest text-primary/80 mb-2">
+                  упоминания
+                </p>
+                {contextLoading ? (
+                  <p className="text-xs text-muted-foreground">Ищу…</p>
+                ) : context.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Прямых упоминаний в чек-инах и чате не нашлось.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {context.map((c) => (
+                      <li
+                        key={c.id}
+                        className="text-xs rounded-lg border border-border/60 p-2 bg-card/50"
+                      >
+                        <div className="flex items-center justify-between mb-1 mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                          <span>
+                            {c.kind === "checkin" ? "чек-ин" : "чат"}
+                            {c.meta ? ` · ${c.meta}` : ""}
+                          </span>
+                          <span>
+                            {new Date(c.date).toLocaleDateString("ru", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-foreground/90 leading-snug line-clamp-3">
+                          {c.text}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Кликни узел, чтобы увидеть детали и ближайшие связи.
+              Кликни узел, чтобы увидеть детали, ближайшие связи и реальные упоминания
+              в чек-инах и сообщениях.
             </p>
           )}
         </Card>
