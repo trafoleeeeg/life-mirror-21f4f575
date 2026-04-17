@@ -124,9 +124,9 @@ const Progress = () => {
               <span
                 className={`inline-flex items-center text-sm ${
                   summary.delta > 0
-                    ? "text-growth"
+                    ? "text-primary"
                     : summary.delta < 0
-                    ? "text-tension"
+                    ? "text-destructive"
                     : "text-muted-foreground"
                 }`}
               >
@@ -255,9 +255,9 @@ const Progress = () => {
                     <span
                       className={`text-xs ${
                         stat.delta > 0
-                          ? "text-growth"
+                          ? "text-primary"
                           : stat.delta < 0
-                          ? "text-tension"
+                          ? "text-destructive"
                           : "text-muted-foreground"
                       }`}
                     >
