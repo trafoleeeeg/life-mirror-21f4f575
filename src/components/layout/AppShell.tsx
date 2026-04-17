@@ -48,9 +48,9 @@ export const AppShell = () => {
         <div className="px-6 py-6 border-b border-sidebar-border/60">
           <NavLink to="/app" className="flex items-center gap-2.5">
             <div className="size-7 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground text-xs font-bold">IG</span>
+              <span className="text-primary-foreground text-xs font-bold">M</span>
             </div>
-            <span className="font-semibold tracking-tight">Inner Glyph</span>
+            <span className="font-semibold tracking-tight">Mirr</span>
           </NavLink>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -94,9 +94,9 @@ export const AppShell = () => {
         <div className="flex items-center justify-between px-4 h-12">
           <NavLink to="/app" className="flex items-center gap-2">
             <div className="size-6 rounded-md bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground text-[10px] font-bold">IG</span>
+              <span className="text-primary-foreground text-[10px] font-bold">M</span>
             </div>
-            <span className="font-semibold text-sm">Inner Glyph</span>
+            <span className="font-semibold text-sm">Mirr</span>
           </NavLink>
           <NavLink
             to="/app/feed"

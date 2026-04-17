@@ -59,9 +59,9 @@ const Auth = () => {
       <Card className="ios-card w-full max-w-sm p-8 space-y-6">
         <div className="text-center space-y-1">
           <div className="mx-auto size-10 rounded-2xl bg-primary flex items-center justify-center mb-3">
-            <span className="text-primary-foreground font-bold text-lg">IG</span>
+            <span className="text-primary-foreground font-bold text-lg">M</span>
           </div>
-          <h1 className="text-2xl font-semibold">Inner Glyph</h1>
+          <h1 className="text-2xl font-semibold">Mirr</h1>
           <p className="text-sm text-muted-foreground">
             {mode === "signin" ? "Вход в зеркало" : "Создать зеркало"}
           </p>
