@@ -1,6 +1,7 @@
 // Знания — конспекты подходов, на которых стоит работа AI-психолога.
 // Раскрывающиеся карточки с ключевыми идеями, упражнениями и «когда применять».
-import { useState } from "react";
+// Поддерживает якоря: /app/learn#cbt, /app/learn#ifs и т.д.
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
