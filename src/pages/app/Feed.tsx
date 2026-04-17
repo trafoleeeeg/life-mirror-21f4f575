@@ -399,12 +399,25 @@ const Feed = () => {
             const isMine = user?.id === p.user_id;
             const isOpen = openComments === p.id;
             return (
-              <Card key={p.id} className="ios-card p-5 transition-shadow hover:shadow-md">
+              <Card
+                key={p.id}
+                className={cn(
+                  "ios-card p-5 transition-shadow hover:shadow-md",
+                  p.is_ai && "border-primary/40",
+                )}
+                style={p.is_ai ? { background: "hsl(var(--primary) / 0.04)" } : undefined}
+              >
                 <div className="flex items-center gap-2 mb-3">
-                  <div
-                    className="size-8 rounded-full shrink-0"
-                    style={{ background: `hsl(${tone} / 0.7)` }}
-                  />
+                  {p.is_ai ? (
+                    <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <Sparkles className="size-4 text-primary" />
+                    </div>
+                  ) : (
+                    <div
+                      className="size-8 rounded-full shrink-0"
+                      style={{ background: `hsl(${tone} / 0.7)` }}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{p.author_name}</div>
                     <div className="mono text-[10px] text-muted-foreground">{ago(p.created_at)}</div>
