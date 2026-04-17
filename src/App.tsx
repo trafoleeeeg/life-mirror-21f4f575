@@ -14,6 +14,8 @@ import Chat from "./pages/app/Chat";
 import Checkin from "./pages/app/Checkin";
 import Graph from "./pages/app/Graph";
 import Dashboard from "./pages/app/Dashboard";
+import Mirror from "./pages/app/Mirror";
+import { Navigate } from "react-router-dom";
 import Feed from "./pages/app/Feed";
 import DMs from "./pages/app/DMs";
 import Progress from "./pages/app/Progress";
@@ -44,14 +46,20 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<GlyphHome />} />
+              <Route index element={<Mirror />} />
+              <Route path="glyph" element={<GlyphHome />} />
               <Route path="chat" element={<Chat />} />
-              <Route path="checkin" element={<Checkin />} />
+              <Route path="checkin" element={<Navigate to="/app?tab=today" replace />} />
               <Route path="graph" element={<Graph />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="dashboard" element={<Navigate to="/app?tab=analytics" replace />} />
+              <Route path="mirror" element={<Mirror />} />
+              <Route path="sleep" element={<Navigate to="/app?tab=sleep" replace />} />
               <Route path="feed" element={<Feed />} />
               <Route path="dms" element={<DMs />} />
-              <Route path="progress" element={<Progress />} />
+              <Route path="progress" element={<Navigate to="/app?tab=analytics" replace />} />
+              <Route path="checkin-form" element={<Checkin />} />
+              <Route path="dashboard-old" element={<Dashboard />} />
+              <Route path="progress-old" element={<Progress />} />
               <Route path="learn" element={<Learn />} />
               <Route path="settings" element={<Settings />} />
               <Route path="notifications" element={<Notifications />} />

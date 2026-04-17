@@ -2,13 +2,12 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   Sparkles,
   MessageCircle,
-  ClipboardCheck,
+  Moon,
   Network,
   User,
   LineChart,
   Rss,
   Mail,
-  Trophy,
   BookOpen,
   Settings,
   Bell,
@@ -17,8 +16,8 @@ import { cn } from "@/lib/utils";
 
 /** Primary tabs shown on mobile bottom bar (5 max — iOS guideline). */
 const primary = [
-  { to: "/app", label: "Глиф", icon: Sparkles, end: true },
-  { to: "/app/checkin", label: "Чек-ин", icon: ClipboardCheck },
+  { to: "/app", label: "Зеркало", icon: LineChart, end: true },
+  { to: "/app/glyph", label: "Глиф", icon: Sparkles },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
   { to: "/app/graph", label: "Граф", icon: Network },
   { to: "/app/settings", label: "Я", icon: User },
@@ -26,14 +25,13 @@ const primary = [
 
 /** Full nav shown in desktop sidebar. */
 const sidebarNav = [
-  { to: "/app", label: "Глиф", icon: Sparkles, end: true },
+  { to: "/app", label: "Зеркало", icon: LineChart, end: true },
+  { to: "/app/glyph", label: "Глиф", icon: Sparkles },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
-  { to: "/app/checkin", label: "Чек-ин", icon: ClipboardCheck },
   { to: "/app/graph", label: "Граф", icon: Network },
-  { to: "/app/dashboard", label: "Зеркало", icon: LineChart },
+  { to: "/app/sleep", label: "Сон", icon: Moon },
   { to: "/app/feed", label: "Лента", icon: Rss },
   { to: "/app/dms", label: "Сообщения", icon: Mail },
-  { to: "/app/progress", label: "Прогресс", icon: Trophy },
   { to: "/app/learn", label: "Знания", icon: BookOpen },
   { to: "/app/notifications", label: "Уведомления", icon: Bell },
 ];
