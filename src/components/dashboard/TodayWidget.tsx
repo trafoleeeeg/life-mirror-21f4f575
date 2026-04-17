@@ -5,6 +5,7 @@ import { Sparkles, Activity, Smile } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const TodayWidget = () => {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ export const TodayWidget = () => {
   const [avg, setAvg] = useState<number | null>(null);
   const [lastEmoji, setLastEmoji] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hourly, setHourly] = useState<{ hour: string; mood: number | null; raw: number | null }[]>([]);
 
   const load = async () => {
     if (!user) return;
@@ -27,6 +29,24 @@ export const TodayWidget = () => {
     setCount(rows.length);
     setAvg(rows.length ? rows.reduce((s, r) => s + r.mood, 0) / rows.length : null);
     setLastEmoji(rows[0]?.emoji ?? null);
+
+    // hourly buckets 0..23
+    const buckets: Record<number, number[]> = {};
+    for (const r of rows) {
+      const h = new Date(r.created_at).getHours();
+      (buckets[h] ||= []).push(r.mood);
+    }
+    const nowH = new Date().getHours();
+    const series = Array.from({ length: nowH + 1 }, (_, h) => {
+      const arr = buckets[h];
+      const avgH = arr && arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : null;
+      return {
+        hour: `${String(h).padStart(2, "0")}:00`,
+        mood: avgH ?? 0,
+        raw: avgH,
+      };
+    });
+    setHourly(series);
     setLoading(false);
   };
 
@@ -89,6 +109,48 @@ export const TodayWidget = () => {
           <p className="text-2xl">{lastEmoji ?? "·"}</p>
         </div>
       </div>
+
+      {!loading && count > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              настроение по часам
+            </p>
+            <p className="mono text-[10px] text-muted-foreground">0–{new Date().getHours()}ч</p>
+          </div>
+          <div className="h-20">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={hourly} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="todayMood" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="hour" hide />
+                <YAxis domain={[0, 10]} hide />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 11,
+                  }}
+                  formatter={(_, __, p) => [p.payload.raw != null ? p.payload.raw.toFixed(1) : "—", "mood"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="mood"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#todayMood)"
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {!loading && count === 0 && (
         <p className="text-xs text-muted-foreground mt-3">
