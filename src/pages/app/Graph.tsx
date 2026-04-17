@@ -1,61 +1,39 @@
-// «Карта жизни» — заменяет старый force-граф.
-// Состоит из 3 слоёв:
-//   1. Рейтинг «Заряжает / Истощает» — корреляция упоминания сущности с твоим mood
-//   2. Эмоциональный ландшафт — heatmap эмоций по дням + топ-триггеры
-//   3. Карта связей — структурированная сетка по 4 секторам (без физики), кликабельная
+// «Карта жизни» — главный экран Graph.
+// Структура:
+//   • Toolbar: период, добавить сущность, обновить из AI
+//   • Рекомендации (если есть)
+//   • Рейтинг «Заряжает / Истощает» с трендами ↑/↓ и закреплёнными наверху
+//   • Сочетания (синергии и токсичные комбо)
+//   • Эмоциональный ландшафт + триггеры
+//   • Сравнение с предыдущим периодом
+//   • Карта связей с подсветкой и группировкой
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, RefreshCw, TrendingUp, TrendingDown, Flame, Waves } from "lucide-react";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
+import {
+  Sparkles, RefreshCw, TrendingUp, TrendingDown, Flame, Waves, Pin,
+  ArrowUpRight, ArrowDownRight, Minus, EyeOff, Lightbulb,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import type { DbEntity, DbEdge, PingRow, CheckinRow, EntityType } from "@/types/lifeMap";
+import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
+import {
+  computeBaseline, computeImpact, computeCombos, computeRecommendations,
+  compareImpactPeriods, filterByDays, type PeriodDays, type ImpactRow, type ComboRow,
+} from "@/lib/lifeMap";
+import { EntityManager } from "@/components/graph/EntityManager";
+import { AddEntityDialog } from "@/components/graph/AddEntityDialog";
 
-type EntityType = "event" | "person" | "topic" | "emotion";
-
-interface DbEntity {
-  id: string;
-  type: EntityType;
-  label: string;
-  mentions: number;
-  last_seen_at: string;
-}
-interface DbEdge {
-  id: string;
-  a_id: string;
-  b_id: string;
-  strength: number;
-  last_seen_at: string;
-}
-interface PingRow {
-  created_at: string;
-  mood: number;
-  note: string | null;
-  activities: string[];
-}
-interface CheckinRow {
-  created_at: string;
-  mood: number | null;
-  note: string | null;
-  intent: string | null;
-  tags: string[];
-}
-
-const TYPE_LABEL: Record<EntityType, string> = {
-  event: "События",
-  person: "Люди",
-  topic: "Темы",
-  emotion: "Эмоции",
-};
-const TYPE_TOKEN: Record<EntityType, string> = {
-  person: "var(--stat-relationships)",
-  event: "var(--ring-exercise)",
-  topic: "var(--stat-career)",
-  emotion: "var(--stat-emotions)",
-};
+const PERIODS: PeriodDays[] = [7, 30, 60, 90];
 
 const Graph = () => {
   const { user, session } = useAuth();
@@ -64,18 +42,29 @@ const Graph = () => {
   const [pings, setPings] = useState<PingRow[]>([]);
   const [checkins, setCheckins] = useState<CheckinRow[]>([]);
   const [selected, setSelected] = useState<DbEntity | null>(null);
+  const [managerEnt, setManagerEnt] = useState<DbEntity | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodDays>(() => {
+    const saved = localStorage.getItem("lifemap.period");
+    return (saved && PERIODS.includes(Number(saved) as PeriodDays) ? Number(saved) : 30) as PeriodDays;
+  });
+  const [showHidden, setShowHidden] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // === ЗАГРУЗКА ===
+  useEffect(() => {
+    localStorage.setItem("lifemap.period", String(period));
+  }, [period]);
+
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    const since = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+    // Always fetch 90 days so we can compare periods
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
     Promise.all([
       supabase
         .from("graph_entities")
-        .select("id,type,label,mentions,last_seen_at")
+        .select("id,type,label,mentions,last_seen_at,pinned,hidden,category,custom_label")
         .eq("user_id", user.id),
       supabase
         .from("graph_edges")
@@ -94,94 +83,95 @@ const Graph = () => {
         .gte("created_at", since)
         .order("created_at", { ascending: true }),
     ]).then(([e, ed, mp, ch]) => {
-      setEntities(((e.data ?? []) as DbEntity[]).filter((x) => ["event", "person", "topic", "emotion"].includes(x.type)));
+      const ents = ((e.data ?? []) as DbEntity[]).filter((x) =>
+        ["event", "person", "topic", "emotion"].includes(x.type),
+      );
+      setEntities(ents);
       setEdges((ed.data ?? []) as DbEdge[]);
       setPings((mp.data ?? []) as PingRow[]);
       setCheckins((ch.data ?? []) as CheckinRow[]);
       setLoading(false);
     });
-  }, [user]);
+  }, [user, reloadKey]);
 
-  // === BASELINE MOOD ===
-  const baseline = useMemo(() => {
-    const all: number[] = [];
-    pings.forEach((p) => all.push(p.mood));
-    checkins.forEach((c) => c.mood != null && all.push(c.mood));
-    if (!all.length) return null;
-    return all.reduce((s, x) => s + x, 0) / all.length;
-  }, [pings, checkins]);
+  const reload = () => setReloadKey((k) => k + 1);
 
-  // === ВЛИЯНИЕ СУЩНОСТИ НА MOOD ===
-  // Для каждой сущности считаем средний mood в дни, когда она упоминалась
-  // (по тегам/note/activities/intent), и сравниваем с baseline.
-  const impact = useMemo(() => {
-    if (!entities.length || baseline == null) return [];
-    const dayKey = (d: string) => d.slice(0, 10);
-    const dayMood = new Map<string, number[]>();
-    pings.forEach((p) => {
-      const k = dayKey(p.created_at);
-      if (!dayMood.has(k)) dayMood.set(k, []);
-      dayMood.get(k)!.push(p.mood);
+  // Filter to current period
+  const periodPings = useMemo(() => filterByDays(pings, period), [pings, period]);
+  const periodCheckins = useMemo(() => filterByDays(checkins, period), [checkins, period]);
+  // Previous period (same window before)
+  const prevPings = useMemo(() => {
+    const cutoffNew = Date.now() - period * 86400_000;
+    const cutoffOld = Date.now() - period * 2 * 86400_000;
+    return pings.filter((p) => {
+      const t = new Date(p.created_at).getTime();
+      return t >= cutoffOld && t < cutoffNew;
     });
-    checkins.forEach((c) => {
-      if (c.mood == null) return;
-      const k = dayKey(c.created_at);
-      if (!dayMood.has(k)) dayMood.set(k, []);
-      dayMood.get(k)!.push(c.mood);
+  }, [pings, period]);
+  const prevCheckins = useMemo(() => {
+    const cutoffNew = Date.now() - period * 86400_000;
+    const cutoffOld = Date.now() - period * 2 * 86400_000;
+    return checkins.filter((c) => {
+      const t = new Date(c.created_at).getTime();
+      return t >= cutoffOld && t < cutoffNew;
     });
+  }, [checkins, period]);
 
-    return entities
-      .map((ent) => {
-        const lc = ent.label.toLowerCase();
-        // дни, в которых сущность упоминается
-        const days = new Set<string>();
-        pings.forEach((p) => {
-          const hay = `${p.note ?? ""} ${p.activities.join(" ")}`.toLowerCase();
-          if (hay.includes(lc)) days.add(dayKey(p.created_at));
-        });
-        checkins.forEach((c) => {
-          const hay = `${c.note ?? ""} ${c.intent ?? ""} ${c.tags.join(" ")}`.toLowerCase();
-          if (hay.includes(lc)) days.add(dayKey(c.created_at));
-        });
-        // если нет прямых упоминаний — используем last_seen как «эпизод» (вес меньше)
-        const moods: number[] = [];
-        days.forEach((d) => {
-          const arr = dayMood.get(d);
-          if (arr) moods.push(...arr);
-        });
-        if (!moods.length) {
-          // fallback: ничего не считаем — недостаточно данных
-          return { ent, avg: null as number | null, delta: 0, n: 0 };
-        }
-        const avg = moods.reduce((s, x) => s + x, 0) / moods.length;
-        return { ent, avg, delta: avg - baseline, n: moods.length };
-      })
-      .filter((x) => x.n >= 1);
-  }, [entities, pings, checkins, baseline]);
+  // Visible entities
+  const visibleEntities = useMemo(
+    () => entities.filter((e) => showHidden || !e.hidden),
+    [entities, showHidden],
+  );
 
+  const baseline = useMemo(() => computeBaseline(periodPings, periodCheckins), [periodPings, periodCheckins]);
+  const prevBaseline = useMemo(() => computeBaseline(prevPings, prevCheckins), [prevPings, prevCheckins]);
+
+  const impact = useMemo(
+    () => computeImpact(visibleEntities, periodPings, periodCheckins, baseline, period),
+    [visibleEntities, periodPings, periodCheckins, baseline, period],
+  );
+  const prevImpact = useMemo(
+    () => computeImpact(visibleEntities, prevPings, prevCheckins, prevBaseline, period),
+    [visibleEntities, prevPings, prevCheckins, prevBaseline, period],
+  );
+
+  const pinned = impact.filter((r) => r.ent.pinned && r.n > 0);
   const charging = impact
-    .filter((x) => x.delta > 0.2)
+    .filter((r) => !r.ent.pinned && r.delta > 0.2)
     .sort((a, b) => b.delta - a.delta)
     .slice(0, 6);
   const draining = impact
-    .filter((x) => x.delta < -0.2)
+    .filter((r) => !r.ent.pinned && r.delta < -0.2)
     .sort((a, b) => a.delta - b.delta)
     .slice(0, 6);
 
-  // === ЭМОЦИОНАЛЬНЫЙ ЛАНДШАФТ ===
-  // Heatmap: для каждой эмоции — её "интенсивность" по дням (упоминания × magnitude).
-  const emotions = entities.filter((e) => e.type === "emotion");
-  const days30 = useMemo(() => {
+  const combos = useMemo(
+    () => computeCombos(visibleEntities, periodPings, periodCheckins, baseline),
+    [visibleEntities, periodPings, periodCheckins, baseline],
+  );
+  const synergies = combos.filter((c) => c.delta > 0.3).slice(0, 4);
+  const toxic = combos.filter((c) => c.delta < -0.3).slice(0, 4);
+
+  const recommendations = useMemo(
+    () => computeRecommendations(impact, visibleEntities, periodPings, periodCheckins),
+    [impact, visibleEntities, periodPings, periodCheckins],
+  );
+
+  const comparison = useMemo(() => compareImpactPeriods(impact, prevImpact), [impact, prevImpact]);
+
+  // === Эмоциональный ландшафт ===
+  const emotions = visibleEntities.filter((e) => e.type === "emotion");
+  const days = useMemo(() => {
     const arr: string[] = [];
-    for (let i = 29; i >= 0; i--) {
+    for (let i = period - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       arr.push(d.toISOString().slice(0, 10));
     }
     return arr;
-  }, []);
+  }, [period]);
+
   const emotionHeat = useMemo(() => {
-    // Map<emotionId, Map<dayKey, intensity>>
     const map = new Map<string, Map<string, number>>();
     emotions.forEach((e) => map.set(e.id, new Map()));
     const bump = (id: string, day: string, w = 1) => {
@@ -195,70 +185,57 @@ const Graph = () => {
         if (lc.includes(e.label.toLowerCase())) bump(e.id, day, weight);
       });
     };
-    pings.forEach((p) => {
-      const day = p.created_at.slice(0, 10);
-      consider(`${p.note ?? ""} ${p.activities.join(" ")}`, day, 1);
-    });
-    checkins.forEach((c) => {
-      const day = c.created_at.slice(0, 10);
-      consider(`${c.note ?? ""} ${c.intent ?? ""} ${c.tags.join(" ")}`, day, 1.5);
-    });
+    periodPings.forEach((p) => consider(`${p.note ?? ""} ${p.activities.join(" ")}`, p.created_at.slice(0, 10), 1));
+    periodCheckins.forEach((c) =>
+      consider(`${c.note ?? ""} ${c.intent ?? ""} ${c.tags.join(" ")}`, c.created_at.slice(0, 10), 1.5),
+    );
     return map;
-  }, [emotions, pings, checkins]);
+  }, [emotions, periodPings, periodCheckins]);
 
-  // Триггеры эмоции — что чаще всего упоминается в один день с ней
   const triggersFor = (emoId: string) => {
-    const emo = entities.find((e) => e.id === emoId);
-    if (!emo) return [] as { ent: DbEntity; count: number }[];
     const heat = emotionHeat.get(emoId);
-    if (!heat) return [];
+    if (!heat) return [] as { ent: DbEntity; count: number }[];
     const emoDays = new Set(Array.from(heat.keys()));
     const counts = new Map<string, number>();
     const consider = (text: string, day: string) => {
       if (!emoDays.has(day)) return;
       const lc = text.toLowerCase();
-      entities.forEach((e) => {
+      visibleEntities.forEach((e) => {
         if (e.id === emoId || e.type === "emotion") return;
-        if (lc.includes(e.label.toLowerCase())) {
-          counts.set(e.id, (counts.get(e.id) ?? 0) + 1);
-        }
+        if (lc.includes(e.label.toLowerCase())) counts.set(e.id, (counts.get(e.id) ?? 0) + 1);
       });
     };
-    pings.forEach((p) =>
-      consider(`${p.note ?? ""} ${p.activities.join(" ")}`, p.created_at.slice(0, 10)),
-    );
-    checkins.forEach((c) =>
-      consider(
-        `${c.note ?? ""} ${c.intent ?? ""} ${c.tags.join(" ")}`,
-        c.created_at.slice(0, 10),
-      ),
+    periodPings.forEach((p) => consider(`${p.note ?? ""} ${p.activities.join(" ")}`, p.created_at.slice(0, 10)));
+    periodCheckins.forEach((c) =>
+      consider(`${c.note ?? ""} ${c.intent ?? ""} ${c.tags.join(" ")}`, c.created_at.slice(0, 10)),
     );
     return Array.from(counts.entries())
-      .map(([id, count]) => ({ ent: entities.find((e) => e.id === id)!, count }))
+      .map(([id, count]) => ({ ent: visibleEntities.find((e) => e.id === id)!, count }))
       .filter((x) => x.ent)
       .sort((a, b) => b.count - a.count)
       .slice(0, 4);
   };
 
-  // === КАРТА СВЯЗЕЙ — структурированная по секторам ===
+  // === Карта связей: группы (по категории если есть, иначе по типу) ===
   const grouped = useMemo(() => {
+    const useCats = visibleEntities.some((e) => e.category);
+    if (useCats) {
+      const g = new Map<string, DbEntity[]>();
+      visibleEntities.forEach((e) => {
+        const key = e.category || `(${TYPE_LABEL[e.type]})`;
+        if (!g.has(key)) g.set(key, []);
+        g.get(key)!.push(e);
+      });
+      g.forEach((arr) => arr.sort((a, b) => b.mentions - a.mentions));
+      return Array.from(g.entries());
+    }
     const g: Record<EntityType, DbEntity[]> = { person: [], event: [], topic: [], emotion: [] };
-    entities.forEach((e) => g[e.type]?.push(e));
-    (Object.keys(g) as EntityType[]).forEach((k) =>
-      g[k].sort((a, b) => b.mentions - a.mentions),
+    visibleEntities.forEach((e) => g[e.type]?.push(e));
+    (Object.keys(g) as EntityType[]).forEach((k) => g[k].sort((a, b) => b.mentions - a.mentions));
+    return (["person", "event", "topic", "emotion"] as EntityType[]).map(
+      (t) => [TYPE_LABEL[t], g[t]] as [string, DbEntity[]],
     );
-    return g;
-  }, [entities]);
-
-  const neighbors = (id: string) => {
-    return edges
-      .filter((e) => e.a_id === id || e.b_id === id)
-      .map((e) => ({
-        edge: e,
-        other: entities.find((n) => n.id === (e.a_id === id ? e.b_id : e.a_id))!,
-      }))
-      .filter((x) => x.other);
-  };
+  }, [visibleEntities]);
 
   const isLinkedToSelected = (id: string) => {
     if (!selected) return false;
@@ -270,7 +247,15 @@ const Graph = () => {
     );
   };
 
-  // === AI EXTRACT ===
+  const neighbors = (id: string) =>
+    edges
+      .filter((e) => e.a_id === id || e.b_id === id)
+      .map((e) => ({
+        edge: e,
+        other: visibleEntities.find((n) => n.id === (e.a_id === id ? e.b_id : e.a_id))!,
+      }))
+      .filter((x) => x.other);
+
   const extractNow = async () => {
     if (!session) return;
     setExtracting(true);
@@ -287,14 +272,7 @@ const Graph = () => {
       if (!resp.ok) toast.error(json.error || "Не удалось извлечь");
       else {
         toast.success(json.entities ? `Найдено: ${json.entities} узлов` : "Готово");
-        // reload
-        if (user) {
-          const { data: ents } = await supabase
-            .from("graph_entities")
-            .select("id,type,label,mentions,last_seen_at")
-            .eq("user_id", user.id);
-          setEntities((ents ?? []) as DbEntity[]);
-        }
+        reload();
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Сеть недоступна");
@@ -303,13 +281,43 @@ const Graph = () => {
     }
   };
 
+  const hiddenCount = entities.filter((e) => e.hidden).length;
+
   return (
     <>
       <PageHeader
         eyebrow="карта жизни"
         title="Граф"
-        description="Что заряжает, что истощает, какие эмоции живут с тобой и что их вызывает."
-      >
+        description="Что заряжает, что истощает, какие эмоции живут рядом и что их вызывает."
+      />
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <ToggleGroup
+          type="single"
+          value={String(period)}
+          onValueChange={(v) => v && setPeriod(Number(v) as PeriodDays)}
+          className="rounded-full border"
+        >
+          {PERIODS.map((d) => (
+            <ToggleGroupItem key={d} value={String(d)} className="text-xs h-8 px-3 rounded-full">
+              {d}д
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <AddEntityDialog onAdded={reload} />
+        {hiddenCount > 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-full text-xs"
+            onClick={() => setShowHidden((v) => !v)}
+          >
+            <EyeOff className="size-3.5 mr-1" />
+            {showHidden ? "Скрыть скрытые" : `Показать скрытые (${hiddenCount})`}
+          </Button>
+        )}
+        <div className="ml-auto" />
         <Button onClick={extractNow} disabled={extracting} size="sm" className="rounded-full">
           {extracting ? (
             <>
@@ -321,7 +329,7 @@ const Graph = () => {
             </>
           )}
         </Button>
-      </PageHeader>
+      </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Собираю карту…</p>
@@ -330,13 +338,61 @@ const Graph = () => {
           <Sparkles className="size-10 text-primary/60 mb-3 mx-auto" />
           <p className="font-medium mb-1">Карта пустая</p>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Сделай несколько чек-инов с заметками или поговори с психологом — и нажми «Обновить
-            из AI».
+            Сделай несколько чек-инов с заметками или поговори с психологом — и нажми «Обновить из AI».
+            Или добавь сущность вручную.
           </p>
         </Card>
       ) : (
         <div className="space-y-5">
-          {/* === 1. ЗАРЯЖАЕТ / ИСТОЩАЕТ === */}
+          {/* === РЕКОМЕНДАЦИИ === */}
+          {recommendations.length > 0 && (
+            <Card className="ios-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span
+                  className="size-7 rounded-lg flex items-center justify-center"
+                  style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}
+                >
+                  <Lightbulb className="size-4" />
+                </span>
+                <h2 className="text-base font-semibold tracking-tight">Что попробовать</h2>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {recommendations.map((r, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelected(r.ent)}
+                    className="text-left p-3 rounded-lg border border-border/60 hover:border-primary/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{ background: `hsl(${TYPE_TOKEN[r.ent.type]})` }}
+                      />
+                      {r.message}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{r.detail}</div>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* === PINNED === */}
+          {pinned.length > 0 && (
+            <Card className="ios-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Pin className="size-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold tracking-tight">Закреплённые</h2>
+              </div>
+              <ul className="space-y-1.5">
+                {pinned.map((row) => (
+                  <ImpactRowItem key={row.ent.id} row={row} onPick={(e) => setSelected(e)} onEdit={(e) => setManagerEnt(e)} />
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {/* === ЗАРЯЖАЕТ / ИСТОЩАЕТ === */}
           <div className="grid md:grid-cols-2 gap-4">
             <ImpactCard
               title="Заряжает"
@@ -345,6 +401,7 @@ const Graph = () => {
               items={charging}
               baseline={baseline}
               onPick={(e) => setSelected(e)}
+              onEdit={(e) => setManagerEnt(e)}
             />
             <ImpactCard
               title="Истощает"
@@ -353,18 +410,30 @@ const Graph = () => {
               items={draining}
               baseline={baseline}
               onPick={(e) => setSelected(e)}
+              onEdit={(e) => setManagerEnt(e)}
             />
           </div>
 
-          {/* === 2. ЭМОЦИОНАЛЬНЫЙ ЛАНДШАФТ === */}
+          {/* === СОЧЕТАНИЯ === */}
+          {(synergies.length > 0 || toxic.length > 0) && (
+            <Card className="ios-card p-5">
+              <h2 className="text-base font-semibold tracking-tight mb-3">Сочетания</h2>
+              <div className="grid md:grid-cols-2 gap-3">
+                <ComboList title="Синергии" tone="up" items={synergies} />
+                <ComboList title="Токсичные комбо" tone="down" items={toxic} />
+              </div>
+            </Card>
+          )}
+
+          {/* === ЭМОЦИОНАЛЬНЫЙ ЛАНДШАФТ === */}
           <Card className="ios-card p-5">
             <div className="flex items-baseline justify-between mb-4">
               <h2 className="text-lg font-semibold tracking-tight">Эмоциональный ландшафт</h2>
-              <span className="text-xs text-muted-foreground">последние 30 дней</span>
+              <span className="text-xs text-muted-foreground">{period} дн.</span>
             </div>
             {emotions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Эмоции ещё не извлечены. Нажми «Обновить из AI».
+                Эмоции ещё не извлечены. Нажми «Обновить из AI» или добавь вручную.
               </p>
             ) : (
               <div className="space-y-2.5">
@@ -383,64 +452,47 @@ const Graph = () => {
                       )}
                       onClick={() => setSelected(e)}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="size-2.5 rounded-full"
-                            style={{ background: `hsl(${TYPE_TOKEN.emotion})` }}
-                          />
-                          <span className="font-medium">{e.label}</span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {e.mentions} упоминаний
-                          </span>
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="size-2.5 rounded-full" style={{ background: `hsl(${TYPE_TOKEN.emotion})` }} />
+                          <span className="font-medium truncate">{displayLabel(e)}</span>
+                          <span className="text-[11px] text-muted-foreground shrink-0">{e.mentions}×</span>
                         </div>
                         {trig.length > 0 && (
                           <div className="hidden sm:flex items-center gap-1.5 flex-wrap justify-end">
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                              триггеры:
-                            </span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">триггеры:</span>
                             {trig.map((t) => (
                               <Badge
                                 key={t.ent.id}
                                 variant="outline"
                                 className="text-[10px] py-0 px-1.5"
-                                style={{
-                                  borderColor: `hsl(${TYPE_TOKEN[t.ent.type]} / 0.4)`,
-                                }}
+                                style={{ borderColor: `hsl(${TYPE_TOKEN[t.ent.type]} / 0.4)` }}
                               >
-                                {t.ent.label}
+                                {displayLabel(t.ent)}
                               </Badge>
                             ))}
                           </div>
                         )}
                       </div>
-                      {/* heatmap-полоска */}
-                      <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${days30.length}, minmax(0, 1fr))` }}>
-                        {days30.map((d) => {
+                      <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+                        {days.map((d) => {
                           const v = heat.get(d) ?? 0;
                           const op = v === 0 ? 0.06 : 0.18 + (v / max) * 0.82;
                           return (
                             <div
                               key={d}
                               className="h-5 rounded-[2px]"
-                              style={{
-                                background: `hsl(${TYPE_TOKEN.emotion} / ${op})`,
-                              }}
+                              style={{ background: `hsl(${TYPE_TOKEN.emotion} / ${op})` }}
                               title={`${d}: ${v}`}
                             />
                           );
                         })}
                       </div>
-                      {/* триггеры на мобиле */}
                       {trig.length > 0 && (
                         <div className="sm:hidden flex items-center gap-1.5 flex-wrap mt-2">
                           {trig.map((t) => (
-                            <Badge
-                              key={t.ent.id}
-                              variant="outline"
-                              className="text-[10px] py-0 px-1.5"
-                            >
-                              {t.ent.label}
+                            <Badge key={t.ent.id} variant="outline" className="text-[10px] py-0 px-1.5">
+                              {displayLabel(t.ent)}
                             </Badge>
                           ))}
                         </div>
@@ -452,21 +504,36 @@ const Graph = () => {
             )}
           </Card>
 
-          {/* === 3. КАРТА СВЯЗЕЙ === */}
+          {/* === СРАВНЕНИЕ ПЕРИОДОВ === */}
+          {(comparison.rising.length + comparison.falling.length + comparison.newly.length + comparison.gone.length > 0) && (
+            <Card className="ios-card p-5">
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-base font-semibold tracking-tight">Сравнение с прошлым периодом</h2>
+                <span className="text-xs text-muted-foreground">vs предыдущие {period} дн.</span>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <ChangeBlock title="Растут" tone="up" items={comparison.rising} onPick={setSelected} />
+                <ChangeBlock title="Падают" tone="down" items={comparison.falling} onPick={setSelected} />
+                <NewlyGoneBlock title="Появились" items={comparison.newly} onPick={setSelected} />
+                <NewlyGoneBlock title="Исчезли" items={comparison.gone} onPick={setSelected} muted />
+              </div>
+            </Card>
+          )}
+
+          {/* === КАРТА СВЯЗЕЙ === */}
           <Card className="ios-card p-5">
             <div className="flex items-baseline justify-between mb-4">
               <h2 className="text-lg font-semibold tracking-tight">Карта связей</h2>
               <span className="text-xs text-muted-foreground">
-                {entities.length} узлов · {edges.length} связей
+                {visibleEntities.length} узлов · {edges.length} связей
               </span>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {(["person", "event", "topic", "emotion"] as EntityType[]).map((t) => (
+            <div className={cn("grid gap-3", grouped.length > 4 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4")}>
+              {grouped.map(([title, items]) => (
                 <Sector
-                  key={t}
-                  title={TYPE_LABEL[t]}
-                  items={grouped[t]}
-                  color={TYPE_TOKEN[t]}
+                  key={title}
+                  title={title}
+                  items={items}
                   selected={selected}
                   isLinked={isLinkedToSelected}
                   onPick={setSelected}
@@ -475,19 +542,28 @@ const Graph = () => {
             </div>
             {selected && (
               <div className="mt-4 pt-4 border-t border-border/60">
-                <div className="flex items-baseline justify-between mb-2">
-                  <h3 className="font-semibold">
-                    {selected.label}{" "}
+                <div className="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    {selected.pinned && <Pin className="size-3.5 text-primary" />}
+                    {displayLabel(selected)}
                     <span className="text-xs font-normal text-muted-foreground">
                       · {TYPE_LABEL[selected.type].toLowerCase()}
                     </span>
                   </h3>
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    очистить
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setManagerEnt(selected)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      настроить
+                    </button>
+                    <button
+                      onClick={() => setSelected(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      очистить
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {neighbors(selected.id).length === 0 && (
@@ -500,7 +576,7 @@ const Graph = () => {
                       className="px-2 py-1 rounded-full text-xs border border-border/60 hover:border-primary/60 transition-colors"
                       style={{ background: `hsl(${TYPE_TOKEN[other.type]} / 0.08)` }}
                     >
-                      {other.label}
+                      {displayLabel(other)}
                       <span className="ml-1.5 text-[10px] opacity-60">
                         {Math.round(Number(edge.strength) * 10) / 10}
                       </span>
@@ -512,29 +588,72 @@ const Graph = () => {
           </Card>
         </div>
       )}
+
+      <EntityManager
+        entity={managerEnt}
+        allEntities={entities}
+        open={!!managerEnt}
+        onClose={() => setManagerEnt(null)}
+        onChanged={reload}
+      />
     </>
   );
 };
 
-// === ВНУТРЕННИЕ КОМПОНЕНТЫ ===
+// === СУБ-КОМПОНЕНТЫ ===
+
+const ImpactRowItem = ({
+  row, onPick, onEdit,
+}: { row: ImpactRow; onPick: (e: DbEntity) => void; onEdit: (e: DbEntity) => void }) => {
+  const tone = row.delta >= 0 ? "var(--ring-exercise)" : "var(--stat-body)";
+  const Trend = row.delta >= 0 ? TrendingUp : TrendingDown;
+  const TrendArrow = row.trend > 0.3 ? ArrowUpRight : row.trend < -0.3 ? ArrowDownRight : Minus;
+  const trendColor = row.trend > 0.3 ? "var(--ring-exercise)" : row.trend < -0.3 ? "var(--stat-body)" : "var(--muted-foreground)";
+  return (
+    <li className="group">
+      <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-secondary/50 transition-colors">
+        <button onClick={() => onPick(row.ent)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          {row.ent.pinned && <Pin className="size-3 text-primary shrink-0" />}
+          <span className="size-2 rounded-full shrink-0" style={{ background: `hsl(${TYPE_TOKEN[row.ent.type]})` }} />
+          <span className="font-medium truncate flex-1">{displayLabel(row.ent)}</span>
+          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+            {row.avg?.toFixed(1)} · {row.daysCount}d
+          </span>
+          <span className="flex items-center gap-0.5 text-xs font-medium tabular-nums shrink-0" style={{ color: `hsl(${tone})` }}>
+            <Trend className="size-3" />
+            {row.delta > 0 ? "+" : ""}{row.delta.toFixed(1)}
+          </span>
+          <span
+            title={`Тренд: ${row.trend > 0 ? "+" : ""}${row.trend.toFixed(1)}`}
+            className="flex items-center text-[10px] tabular-nums shrink-0"
+            style={{ color: `hsl(${trendColor})` }}
+          >
+            <TrendArrow className="size-3" />
+          </span>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(row.ent); }}
+          className="opacity-0 group-hover:opacity-100 text-[10px] text-muted-foreground hover:text-foreground transition-opacity shrink-0"
+        >
+          ⋯
+        </button>
+      </div>
+    </li>
+  );
+};
 
 const ImpactCard = ({
-  title,
-  icon,
-  tone,
-  items,
-  baseline,
-  onPick,
+  title, icon, tone, items, baseline, onPick, onEdit,
 }: {
   title: string;
   icon: React.ReactNode;
   tone: "up" | "down";
-  items: { ent: DbEntity; avg: number | null; delta: number; n: number }[];
+  items: ImpactRow[];
   baseline: number | null;
   onPick: (e: DbEntity) => void;
+  onEdit: (e: DbEntity) => void;
 }) => {
   const accent = tone === "up" ? "var(--ring-exercise)" : "var(--stat-body)";
-  const Trend = tone === "up" ? TrendingUp : TrendingDown;
   return (
     <Card className="ios-card p-5">
       <div className="flex items-center justify-between mb-3">
@@ -559,30 +678,8 @@ const ImpactCard = ({
         </p>
       ) : (
         <ul className="space-y-1.5">
-          {items.map(({ ent, avg, delta, n }) => (
-            <li key={ent.id}>
-              <button
-                onClick={() => onPick(ent)}
-                className="w-full flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-secondary/50 transition-colors text-left"
-              >
-                <span
-                  className="size-2 rounded-full shrink-0"
-                  style={{ background: `hsl(${TYPE_TOKEN[ent.type]})` }}
-                />
-                <span className="font-medium truncate flex-1">{ent.label}</span>
-                <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {avg?.toFixed(1)} · {n}d
-                </span>
-                <span
-                  className="flex items-center gap-0.5 text-xs font-medium tabular-nums"
-                  style={{ color: `hsl(${accent})` }}
-                >
-                  <Trend className="size-3" />
-                  {delta > 0 ? "+" : ""}
-                  {delta.toFixed(1)}
-                </span>
-              </button>
-            </li>
+          {items.map((row) => (
+            <ImpactRowItem key={row.ent.id} row={row} onPick={onPick} onEdit={onEdit} />
           ))}
         </ul>
       )}
@@ -590,71 +687,149 @@ const ImpactCard = ({
   );
 };
 
-const Sector = ({
-  title,
-  items,
-  color,
-  selected,
-  isLinked,
-  onPick,
-}: {
-  title: string;
-  items: DbEntity[];
-  color: string;
-  selected: DbEntity | null;
-  isLinked: (id: string) => boolean;
-  onPick: (e: DbEntity) => void;
-}) => {
+const ComboList = ({ title, tone, items }: { title: string; tone: "up" | "down"; items: ComboRow[] }) => {
+  const accent = tone === "up" ? "var(--ring-exercise)" : "var(--stat-body)";
   return (
-    <div className="rounded-xl border border-border/60 p-3 bg-card/40">
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          className="size-2 rounded-full"
-          style={{ background: `hsl(${color})` }}
-        />
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">
-          {title}
-        </span>
-        <span className="ml-auto text-[11px] text-muted-foreground">{items.length}</span>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {items.length === 0 && (
-          <span className="text-xs text-muted-foreground/60">пусто</span>
-        )}
-        {items.map((e) => {
-          const active = selected?.id === e.id;
-          const linked = selected ? isLinked(e.id) : true;
-          // size by mentions
-          const scale = Math.min(1.4, 0.85 + e.mentions / 30);
-          return (
-            <button
-              key={e.id}
-              onClick={() => onPick(e)}
-              className={cn(
-                "rounded-full border transition-all whitespace-nowrap",
-                active
-                  ? "border-primary text-foreground"
-                  : linked
-                    ? "border-border/60 hover:border-primary/60"
-                    : "border-border/40 opacity-30",
-              )}
-              style={{
-                background: active
-                  ? `hsl(${color} / 0.18)`
-                  : linked
-                    ? `hsl(${color} / 0.06)`
-                    : "transparent",
-                fontSize: `${Math.round(11 * scale)}px`,
-                padding: `${Math.round(2 * scale)}px ${Math.round(8 * scale)}px`,
-              }}
-            >
-              {e.label}
-            </button>
-          );
-        })}
-      </div>
+    <div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground/70">Не найдено</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {items.map((c, i) => (
+            <li key={i} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
+              <span className="text-sm font-medium truncate flex-1">
+                {displayLabel(c.a)} <span className="text-muted-foreground">+</span> {displayLabel(c.b)}
+              </span>
+              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                {c.coDays}d
+              </span>
+              <span className="text-xs font-medium tabular-nums shrink-0" style={{ color: `hsl(${accent})` }}>
+                {c.delta > 0 ? "+" : ""}{c.delta.toFixed(1)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };
+
+const ChangeBlock = ({
+  title, tone, items, onPick,
+}: {
+  title: string;
+  tone: "up" | "down";
+  items: { ent: DbEntity; cur: number; prev: number; diff: number }[];
+  onPick: (e: DbEntity) => void;
+}) => {
+  const accent = tone === "up" ? "var(--ring-exercise)" : "var(--stat-body)";
+  const Arrow = tone === "up" ? ArrowUpRight : ArrowDownRight;
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground/70">Стабильно</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((m) => (
+            <li key={m.ent.id}>
+              <button
+                onClick={() => onPick(m.ent)}
+                className="w-full flex items-center gap-2 text-sm hover:bg-secondary/40 p-1.5 rounded transition-colors"
+              >
+                <span className="size-1.5 rounded-full" style={{ background: `hsl(${TYPE_TOKEN[m.ent.type]})` }} />
+                <span className="truncate flex-1 text-left">{displayLabel(m.ent)}</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {m.prev > 0 ? "+" : ""}{m.prev.toFixed(1)} → {m.cur > 0 ? "+" : ""}{m.cur.toFixed(1)}
+                </span>
+                <span className="flex items-center gap-0.5 text-xs font-medium tabular-nums" style={{ color: `hsl(${accent})` }}>
+                  <Arrow className="size-3" />{Math.abs(m.diff).toFixed(1)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+const NewlyGoneBlock = ({
+  title, items, onPick, muted,
+}: { title: string; items: DbEntity[]; onPick: (e: DbEntity) => void; muted?: boolean }) => (
+  <div>
+    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
+    {items.length === 0 ? (
+      <p className="text-xs text-muted-foreground/70">—</p>
+    ) : (
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((e) => (
+          <button
+            key={e.id}
+            onClick={() => onPick(e)}
+            className={cn(
+              "px-2 py-0.5 rounded-full text-xs border transition-colors",
+              muted ? "opacity-60" : "",
+            )}
+            style={{
+              background: `hsl(${TYPE_TOKEN[e.type]} / 0.08)`,
+              borderColor: `hsl(${TYPE_TOKEN[e.type]} / 0.3)`,
+            }}
+          >
+            {displayLabel(e)}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+const Sector = ({
+  title, items, selected, isLinked, onPick,
+}: {
+  title: string;
+  items: DbEntity[];
+  selected: DbEntity | null;
+  isLinked: (id: string) => boolean;
+  onPick: (e: DbEntity) => void;
+}) => (
+  <div className="rounded-xl border border-border/60 p-3 bg-card/40">
+    <div className="flex items-center gap-2 mb-2">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground truncate">{title}</span>
+      <span className="ml-auto text-[11px] text-muted-foreground">{items.length}</span>
+    </div>
+    <div className="flex flex-wrap gap-1.5">
+      {items.length === 0 && <span className="text-xs text-muted-foreground/60">пусто</span>}
+      {items.map((e) => {
+        const active = selected?.id === e.id;
+        const linked = selected ? isLinked(e.id) : true;
+        const scale = Math.min(1.4, 0.85 + e.mentions / 30);
+        const color = TYPE_TOKEN[e.type];
+        return (
+          <button
+            key={e.id}
+            onClick={() => onPick(e)}
+            className={cn(
+              "rounded-full border transition-all whitespace-nowrap inline-flex items-center gap-1",
+              active
+                ? "border-primary text-foreground"
+                : linked ? "border-border/60 hover:border-primary/60" : "border-border/40 opacity-30",
+              e.hidden && "opacity-50 italic",
+            )}
+            style={{
+              background: active ? `hsl(${color} / 0.18)` : linked ? `hsl(${color} / 0.06)` : "transparent",
+              fontSize: `${Math.round(11 * scale)}px`,
+              padding: `${Math.round(2 * scale)}px ${Math.round(8 * scale)}px`,
+            }}
+          >
+            {e.pinned && <Pin className="size-2.5 text-primary" />}
+            {displayLabel(e)}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
 
 export default Graph;
