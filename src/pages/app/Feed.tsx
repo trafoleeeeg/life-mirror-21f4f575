@@ -232,22 +232,6 @@ const Feed = () => {
     return filtered;
   }, [posts, scope, followingIds, user?.id]);
 
-  const publish = async () => {
-    if (!draft.trim() || !user) return;
-    setPosting(true);
-    const { error } = await supabase.from("posts").insert({
-      user_id: user.id,
-      content: draft.trim(),
-      category: "наблюдение",
-    });
-    setPosting(false);
-    if (error) {
-      toast.error("Не удалось опубликовать");
-      return;
-    }
-    setDraft("");
-    toast.success("Опубликовано");
-  };
 
   const submitRepost = async () => {
     if (!repostFor || !user) return;
