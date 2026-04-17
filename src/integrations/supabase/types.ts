@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      app_notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          payload: Json
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       auth_events: {
         Row: {
           created_at: string
@@ -169,6 +199,27 @@ export type Database = {
           sleep_hours?: number | null
           tags?: string[]
           user_id?: string
+        }
+        Relationships: []
+      }
+      follows: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+          id?: string
         }
         Relationships: []
       }
@@ -921,6 +972,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dossier_versions: {
+        Row: {
+          created_at: string
+          goals: Json
+          id: string
+          notes: string | null
+          patterns: Json
+          relationships: Json
+          resources: Json
+          source: string
+          summary: string | null
+          themes: Json
+          triggers: Json
+          user_id: string
+          values_list: Json
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          goals?: Json
+          id?: string
+          notes?: string | null
+          patterns?: Json
+          relationships?: Json
+          resources?: Json
+          source?: string
+          summary?: string | null
+          themes?: Json
+          triggers?: Json
+          user_id: string
+          values_list?: Json
+          version: number
+        }
+        Update: {
+          created_at?: string
+          goals?: Json
+          id?: string
+          notes?: string | null
+          patterns?: Json
+          relationships?: Json
+          resources?: Json
+          source?: string
+          summary?: string | null
+          themes?: Json
+          triggers?: Json
+          user_id?: string
+          values_list?: Json
+          version?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1029,6 +1131,10 @@ export type Database = {
       }
       merge_graph_entities: {
         Args: { _drop: string; _keep: string }
+        Returns: undefined
+      }
+      restore_dossier_version: {
+        Args: { _version_id: string }
         Returns: undefined
       }
       seed_demo_community: { Args: { _caller: string }; Returns: Json }
