@@ -89,6 +89,7 @@ const Checkin = () => {
     setNote("");
     setIntent("");
     setPicked([]);
+    bumpAutoExtract();
     setTimeout(() => navigate("/app"), 600);
   };
 

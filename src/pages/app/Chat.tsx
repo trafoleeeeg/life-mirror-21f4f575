@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { bumpAutoExtract } from "@/lib/autoExtract";
 import { toast } from "sonner";
 import {
   AlertDialog,
