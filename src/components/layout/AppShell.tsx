@@ -130,7 +130,7 @@ export const AppShell = () => {
                 )
               }
             >
-              <item.icon className="size-[22px]" strokeWidth={isCurrentStrokeWidth(item.to)} />
+              <item.icon className="size-[22px]" strokeWidth={2} />
               <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </NavLink>
           ))}
@@ -139,6 +139,3 @@ export const AppShell = () => {
     </div>
   );
 };
-
-// helper kept simple — actual active state handled by NavLink class above
-const isCurrentStrokeWidth = (_to: string) => 2;
