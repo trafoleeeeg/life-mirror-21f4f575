@@ -1018,6 +1018,7 @@ export type Database = {
           sleep_sessions: number
         }[]
       }
+      clear_demo_community: { Args: { _caller: string }; Returns: Json }
       compute_ping_streak: { Args: { _user: string }; Returns: number }
       has_role: {
         Args: {
@@ -1030,6 +1031,7 @@ export type Database = {
         Args: { _drop: string; _keep: string }
         Returns: undefined
       }
+      seed_demo_community: { Args: { _caller: string }; Returns: Json }
       try_unlock: { Args: { _code: string; _user: string }; Returns: undefined }
     }
     Enums: {
