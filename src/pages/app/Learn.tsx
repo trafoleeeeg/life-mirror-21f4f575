@@ -1,6 +1,7 @@
 // Знания — конспекты подходов, на которых стоит работа AI-психолога.
 // Раскрывающиеся карточки с ключевыми идеями, упражнениями и «когда применять».
-import { useState } from "react";
+// Поддерживает якоря: /app/learn#cbt, /app/learn#ifs и т.д.
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ interface Item {
   detail: string;
 }
 interface Section {
+  slug: string;
   icon: typeof Brain;
   title: string;
   short: string;
@@ -29,6 +31,7 @@ interface Section {
 const SECTIONS: Section[] = [
   {
     icon: Brain,
+    slug: "cbt",
     title: "CBT — когнитивно-поведенческая терапия",
     short: "Мысль → эмоция → действие",
     desc: "Как мысли формируют эмоции, а эмоции — поведение. И как разорвать круг автоматических искажений: ловить мысль, проверять её на правдивость, заменять на более точную.",
@@ -52,6 +55,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Heart,
+    slug: "ifs",
     title: "IFS — внутренние семейные системы",
     short: "Внутри тебя — команда",
     desc: "Внутри каждого живут «части»: критик, защитник, испуганный ребёнок, перфекционист. IFS учит не воевать с ними, а слушать. У каждой части есть позитивное намерение — даже у самой неудобной.",
@@ -75,6 +79,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Sparkles,
+    slug: "mindfulness",
     title: "Осознанность (mindfulness)",
     short: "Возвращение к себе как навык",
     desc: "Не медитация ради медитации. Способность замечать «что со мной сейчас» без оценки — основа всего остального. Без этого CBT превращается в самобичевание, а IFS — в фантазию.",
@@ -98,6 +103,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Compass,
+    slug: "act",
     title: "ACT — терапия принятия и ответственности",
     short: "Действовать в сторону ценностей",
     desc: "Цель — не «избавиться от боли», а двигаться в сторону того, что важно, даже когда болит. Принятие неприятных эмоций + контакт с настоящим + действие в направлении ценностей.",
@@ -121,6 +127,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Anchor,
+    slug: "attachment",
     title: "Теория привязанности",
     short: "Как мы любим — и почему так",
     desc: "Стиль привязанности формируется в детстве и определяет, как ты ведёшь себя в близких отношениях: ищешь близость, избегаешь, тревожишься или комбинируешь. Знание стиля — половина работы.",
@@ -144,6 +151,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Wind,
+    slug: "nervous-system",
     title: "Регуляция нервной системы",
     short: "Тело первым, мысли потом",
     desc: "Когда нервная система в активации — никакая «работа с мыслями» не работает. Сначала — телесное успокоение, потом — рефлексия. Поливагальная теория объясняет почему.",
@@ -167,6 +175,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Network,
+    slug: "systems",
     title: "Системное мышление в отношениях",
     short: "Проблема — не человек, а паттерн",
     desc: "В любых отношениях (семья, пара, работа) повторяющийся конфликт — не «вина» одного. Это танец двух. Изменить шаг может любая сторона — и танец меняется.",
@@ -190,6 +199,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Sunrise,
+    slug: "sleep",
     title: "Гигиена сна и циркадные ритмы",
     short: "Сон — это база, а не роскошь",
     desc: "Большая часть «эмоциональных» проблем после плохого сна — это не личность, это нейрохимия. Свет утром, темнота вечером, температура и стабильное время — рычаги, которые работают.",
@@ -213,6 +223,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: BookOpen,
+    slug: "values",
     title: "Идентичность и ценности",
     short: "Что из этого вообще моё?",
     desc: "Большая часть наших «целей» и «должно быть» — усвоено: из семьи, школы, соцсетей, культуры. Различить «своё» и «чужое» — отдельная работа, без которой никакая мотивация не держится.",
@@ -239,6 +250,22 @@ const SECTIONS: Section[] = [
 const Learn = () => {
   const [open, setOpen] = useState<number | null>(0);
 
+  useEffect(() => {
+    const applyHash = () => {
+      const slug = window.location.hash.replace(/^#/, "");
+      if (!slug) return;
+      const idx = SECTIONS.findIndex((s) => s.slug === slug);
+      if (idx === -1) return;
+      setOpen(idx);
+      setTimeout(() => {
+        document.getElementById(`learn-${slug}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -252,7 +279,7 @@ const Learn = () => {
           const Icon = s.icon;
           const isOpen = open === i;
           return (
-            <Card key={s.title} className="ios-card overflow-hidden">
+            <Card key={s.title} id={`learn-${s.slug}`} className="ios-card overflow-hidden scroll-mt-20">
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : i)}

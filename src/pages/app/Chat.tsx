@@ -15,6 +15,8 @@ import {
   X,
   Search,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +57,7 @@ const GREETING: Record<Tone, string> = {
 
 const Chat = () => {
   const { user, session } = useAuth();
+  const navigate = useNavigate();
   const [tone, setTone] = useState<Tone>("soft");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -467,13 +470,41 @@ const Chat = () => {
                 )}
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                     m.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                       : "bg-muted text-foreground rounded-bl-sm",
                   )}
                 >
-                  {m.content}
+                  {m.role === "assistant" ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-a:text-primary prose-a:underline-offset-2 prose-ul:my-1.5 prose-ol:my-1.5">
+                      <ReactMarkdown
+                        components={{
+                          a: ({ href, children, ...props }) => {
+                            const isInternal = href?.startsWith("/");
+                            return (
+                              <a
+                                {...props}
+                                href={href}
+                                onClick={(e) => {
+                                  if (isInternal && href) {
+                                    e.preventDefault();
+                                    navigate(href);
+                                  }
+                                }}
+                              >
+                                {children}
+                              </a>
+                            );
+                          },
+                        }}
+                      >
+                        {m.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  )}
                   <div className="mono text-[10px] opacity-60 mt-1">
                     {new Date(m.ts).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
                   </div>
