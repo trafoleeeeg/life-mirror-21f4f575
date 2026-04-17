@@ -169,6 +169,14 @@ const Progress = () => {
         </Card>
       </div>
 
+      {/* Heatmap of check-ins */}
+      <Card className="ios-card p-4 mb-4">
+        <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+          активность чек-инов · 90 дней
+        </p>
+        <Heatmap dates={checkinDates} days={90} />
+      </Card>
+
       {/* Chart */}
       <Card className="ios-card p-4 mb-4">
         {chartData.length < 2 ? (
