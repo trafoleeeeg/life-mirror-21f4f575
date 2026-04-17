@@ -323,6 +323,126 @@ const Progress = () => {
         )}
       </Card>
 
+      {/* Mood by hour of day */}
+      <Card className="ios-card p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            настроение по часам · 90 дней
+          </p>
+          {bestWorst && (
+            <div className="flex gap-3 text-xs">
+              <span className="text-primary">
+                ↑ лучший {bestWorst.best.label} ({bestWorst.best.mood.toFixed(1)})
+              </span>
+              <span className="text-destructive">
+                ↓ худший {bestWorst.worst.label} ({bestWorst.worst.mood.toFixed(1)})
+              </span>
+            </div>
+          )}
+        </div>
+        {pings.length < 3 ? (
+          <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground text-center px-6">
+            Сделай ещё пару пингов — и появятся твои лучшие и худшие часы дня.
+          </div>
+        ) : (
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourlyMood} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  interval={1}
+                />
+                <YAxis
+                  domain={[0, 10]}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 12,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number, _n, p) => [
+                    `${v} (${(p.payload as { count: number }).count} пингов)`,
+                    "Настроение",
+                  ]}
+                  labelFormatter={(h) => `${String(h).padStart(2, "0")}:00`}
+                />
+                <Bar dataKey="mood" radius={[4, 4, 0, 0]}>
+                  {hourlyMood.map((h) => {
+                    const color =
+                      h.count === 0
+                        ? "hsl(var(--muted))"
+                        : h.mood >= 7
+                        ? "hsl(var(--primary))"
+                        : h.mood >= 5
+                        ? "hsl(var(--stat-emotions))"
+                        : "hsl(var(--destructive))";
+                    return <Cell key={h.hour} fill={color} opacity={h.count === 0 ? 0.2 : 1} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      {/* Achievements */}
+      <Card className="ios-card p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            ачивки · {unlocked.size} из {achievements.length}
+          </p>
+        </div>
+        {achievements.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Ачивки скоро появятся.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {achievements.map((a) => {
+              const isUnlocked = unlocked.has(a.id);
+              return (
+                <div
+                  key={a.id}
+                  className={`relative p-3 rounded-xl border transition-all ${
+                    isUnlocked
+                      ? "border-primary/40 bg-gradient-to-br from-primary/10 to-primary/5"
+                      : "border-border bg-muted/30 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className={`text-2xl ${!isUnlocked && "grayscale"}`}>{a.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate">{a.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">
+                        {a.description}
+                      </p>
+                    </div>
+                    {!isUnlocked && (
+                      <Lock className="size-3 text-muted-foreground shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                  {isUnlocked && (
+                    <p className="mono text-[9px] uppercase text-primary/70 mt-2">
+                      {new Date(unlocked.get(a.id)!).toLocaleDateString("ru", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       {/* Toggle stats + per-stat delta */}
       <Card className="ios-card p-4">
         <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
