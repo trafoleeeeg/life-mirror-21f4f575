@@ -397,7 +397,13 @@ const Graph = () => {
               </div>
               <ul className="space-y-1.5">
                 {pinned.map((row) => (
-                  <ImpactRowItem key={row.ent.id} row={row} onPick={(e) => setSelected(e)} onEdit={(e) => setManagerEnt(e)} />
+                  <ImpactRowItem
+                    key={row.ent.id}
+                    row={row}
+                    series={seriesMap.get(row.ent.id)}
+                    onPick={(e) => setSelected(e)}
+                    onEdit={(e) => setManagerEnt(e)}
+                  />
                 ))}
               </ul>
             </Card>
@@ -411,6 +417,7 @@ const Graph = () => {
               tone="up"
               items={charging}
               baseline={baseline}
+              seriesMap={seriesMap}
               onPick={(e) => setSelected(e)}
               onEdit={(e) => setManagerEnt(e)}
             />
@@ -420,6 +427,7 @@ const Graph = () => {
               tone="down"
               items={draining}
               baseline={baseline}
+              seriesMap={seriesMap}
               onPick={(e) => setSelected(e)}
               onEdit={(e) => setManagerEnt(e)}
             />
