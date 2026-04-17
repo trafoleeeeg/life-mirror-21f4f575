@@ -154,6 +154,81 @@ export type Database = {
         }
         Relationships: []
       }
+      graph_edges: {
+        Row: {
+          a_id: string
+          b_id: string
+          created_at: string
+          id: string
+          last_seen_at: string
+          strength: number
+          user_id: string
+        }
+        Insert: {
+          a_id: string
+          b_id: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          strength?: number
+          user_id: string
+        }
+        Update: {
+          a_id?: string
+          b_id?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          strength?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graph_edges_a_id_fkey"
+            columns: ["a_id"]
+            isOneToOne: false
+            referencedRelation: "graph_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graph_edges_b_id_fkey"
+            columns: ["b_id"]
+            isOneToOne: false
+            referencedRelation: "graph_entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graph_entities: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          last_seen_at: string
+          mentions: number
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          last_seen_at?: string
+          mentions?: number
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          last_seen_at?: string
+          mentions?: number
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_tone: string
