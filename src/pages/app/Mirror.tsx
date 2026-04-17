@@ -1,23 +1,16 @@
-// Mirror — single-screen layout (per ОС-апрель doc):
-// 1) Greeting + quick check-in CTA
-// 2) KPI / Stats compact
-// 3) Activity impact (most important block)
-// 4) Daily breakdown (по дням)
-// 5) Mood trend chart (heatmap-replacement)
-// 6) Sleep correlation
-// 7) Balance wheel
-// 8) Collapsed checkins list (last 3)
-// + Sleep & History as Popup mini-cards
-import { useEffect, useState } from "react";
+// Mirror — единый главный экран с DnD-блоками и popup-зонами.
+// Порядок блоков сохраняется в localStorage('mirror.order.v1').
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Plus, History, Moon } from "lucide-react";
+import { Sparkles, Plus, History, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { defaultGlyphState, type GlyphState } from "@/components/glyph/GlyphAvatar";
 import { BalanceWheel } from "@/components/balance/BalanceWheel";
 import { MiniCheckin } from "@/components/mirror/MiniCheckin";
+import { BulkCheckin } from "@/components/mirror/BulkCheckin";
 import { DayPicker } from "@/components/mirror/DayPicker";
 import { DayDetailCard } from "@/components/mirror/DayDetailCard";
 import { DateRangePicker, presetToRange, type Preset } from "@/components/mirror/DateRangePicker";
@@ -30,8 +23,22 @@ import { SleepCorrelation } from "@/components/mirror/SleepCorrelation";
 import { CheckinsList } from "@/components/mirror/CheckinsList";
 import { SleepMiniCard } from "@/components/mirror/SleepMiniCard";
 import { PopupCard } from "@/components/mirror/PopupCard";
+import { SortableSection } from "@/components/mirror/SortableSection";
 import { seedDemoData } from "@/lib/demoData";
 import type { DateRange } from "react-day-picker";
+
+import {
+  DndContext, PointerSensor, useSensor, useSensors,
+  closestCenter, type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+
+const ORDER_KEY = "mirror.order.v1";
+const DEFAULT_ORDER = [
+  "kpi", "minirow", "focus", "analytics-header",
+  "activity", "daily", "trend", "sleep-corr", "balance", "checkins",
+] as const;
+type SectionId = typeof DEFAULT_ORDER[number];
 
 const Mirror = () => {
   const { user } = useAuth();
@@ -40,11 +47,41 @@ const Mirror = () => {
   const [todayCount, setTodayCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [seeding, setSeeding] = useState(false);
-  const [showQuick, setShowQuick] = useState(false);
+  const [quickMode, setQuickMode] = useState<"none" | "single" | "bulk">("none");
 
   const [day, setDay] = useState<Date>(new Date());
   const [preset, setPreset] = useState<Preset>("30d");
   const [range, setRange] = useState<DateRange>(presetToRange("30d"));
+
+  // DnD order
+  const [order, setOrder] = useState<SectionId[]>(() => {
+    try {
+      const saved = localStorage.getItem(ORDER_KEY);
+      if (!saved) return [...DEFAULT_ORDER];
+      const parsed: SectionId[] = JSON.parse(saved);
+      // ensure all default sections present (forward compat)
+      const merged = [...parsed.filter((id) => DEFAULT_ORDER.includes(id))];
+      DEFAULT_ORDER.forEach((id) => { if (!merged.includes(id)) merged.push(id); });
+      return merged;
+    } catch { return [...DEFAULT_ORDER]; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  }, [order]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setOrder((prev) => {
+      const oldIdx = prev.indexOf(active.id as SectionId);
+      const newIdx = prev.indexOf(over.id as SectionId);
+      if (oldIdx < 0 || newIdx < 0) return prev;
+      return arrayMove(prev, oldIdx, newIdx);
+    });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -81,65 +118,10 @@ const Mirror = () => {
 
   const days = preset === "7d" ? 7 : preset === "30d" ? 30 : preset === "90d" ? 90 : preset === "365d" ? 365 : 30;
 
-  return (
-    <div className="space-y-5 pb-8">
-      {/* 1. Greeting + CTA */}
-      <header className="flex items-end justify-between flex-wrap gap-3 animate-fade-in">
-        <div>
-          <p className="text-muted-foreground text-sm">Зеркало</p>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Привет, {name} <span aria-hidden>👋</span>
-          </h1>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={seedDemo}
-          disabled={seeding}
-          className="rounded-full gap-2"
-        >
-          <Sparkles className="size-3.5" />
-          {seeding ? "Загружаю…" : "Демо-данные"}
-        </Button>
-      </header>
-
-      {/* Quick check-in CTA */}
-      <Card
-        role="button"
-        tabIndex={0}
-        onClick={() => setShowQuick((v) => !v)}
-        className="ios-card p-4 cursor-pointer hover:border-primary/40 transition-all animate-slide-up"
-        style={{ animationDelay: "60ms", animationFillMode: "both" }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-full bg-primary/15 text-primary grid place-items-center shrink-0">
-            <Plus className="size-5" />
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Новый чек-ин</p>
-            <p className="text-xs text-muted-foreground">
-              {todayCount > 0 ? `Сегодня: ${todayCount} ${todayCount === 1 ? "запись" : "записей"}` : "Запиши настроение за минуту"}
-            </p>
-          </div>
-        </div>
-      </Card>
-      {showQuick && (
-        <div className="animate-scale-in">
-          <MiniCheckin
-            onSaved={() => {
-              setRefreshKey((k) => k + 1);
-              setShowQuick(false);
-            }}
-          />
-        </div>
-      )}
-
-      {/* 2. KPI compact */}
-      <div className="animate-slide-up" style={{ animationDelay: "120ms", animationFillMode: "both" }}>
-        <MoodKpis key={`kpi-${refreshKey}`} />
-      </div>
-
-      {/* Mini-cards row: History + Sleep */}
+  // Map id → JSX
+  const sections: Record<SectionId, JSX.Element> = useMemo(() => ({
+    kpi: <MoodKpis key={`kpi-${refreshKey}`} />,
+    minirow: (
       <div className="grid sm:grid-cols-2 gap-3">
         <PopupCard
           icon={<History className="size-5" />}
@@ -154,57 +136,105 @@ const Mirror = () => {
         </PopupCard>
         <SleepMiniCard refreshKey={refreshKey} onSaved={() => setRefreshKey((k) => k + 1)} />
       </div>
-
-      {/* 3. Focus + Activity impact */}
-      <div className="animate-slide-up" style={{ animationDelay: "180ms", animationFillMode: "both" }}>
-        <FocusInsights days={7} key={`focus-${refreshKey}`} />
-      </div>
-
-      {/* Range picker — one for analytics block */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
-        <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          аналитика
-        </p>
+    ),
+    focus: <FocusInsights days={7} key={`focus-${refreshKey}`} />,
+    "analytics-header": (
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">аналитика</p>
         <DateRangePicker range={range} onChange={setRange} preset={preset} onPresetChange={setPreset} />
       </div>
-
-      <div className="animate-slide-up" style={{ animationDelay: "220ms", animationFillMode: "both" }}>
-        <ActivityImpact days={days} key={`act-${refreshKey}-${days}`} />
-      </div>
-
-      {/* 4. Daily breakdown */}
-      <div className="animate-slide-up" style={{ animationDelay: "260ms", animationFillMode: "both" }}>
-        <DailyBreakdown days={Math.min(days, 14)} key={`db-${refreshKey}-${days}`} />
-      </div>
-
-      {/* 5. Mood trend (heatmap replacement) */}
-      <div className="animate-slide-up" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
-        <MoodTrendChart range={range} key={`trend-${refreshKey}`} />
-      </div>
-
-      {/* 6. Sleep correlation */}
-      <div className="animate-slide-up" style={{ animationDelay: "340ms", animationFillMode: "both" }}>
-        <SleepCorrelation days={Math.max(days, 30)} key={`corr-${refreshKey}-${days}`} />
-      </div>
-
-      {/* 7. Balance wheel */}
-      <Card
-        className="ios-card p-5 animate-slide-up"
-        style={{ animationDelay: "380ms", animationFillMode: "both" }}
-      >
+    ),
+    activity: <ActivityImpact days={days} key={`act-${refreshKey}-${days}`} />,
+    daily: <DailyBreakdown days={Math.min(days, 14)} key={`db-${refreshKey}-${days}`} />,
+    trend: <MoodTrendChart range={range} key={`trend-${refreshKey}`} />,
+    "sleep-corr": <SleepCorrelation days={Math.max(days, 30)} key={`corr-${refreshKey}-${days}`} />,
+    balance: (
+      <Card className="ios-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            колесо баланса
-          </p>
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">колесо баланса</p>
           <span className="mono text-[10px] text-muted-foreground">по чек-инам</span>
         </div>
         <div className="flex justify-center">
           <BalanceWheel state={stats} size={360} />
         </div>
       </Card>
+    ),
+    checkins: <CheckinsList refreshKey={refreshKey} />,
+  }), [refreshKey, day, range, preset, days, stats]);
 
-      {/* 8. Today's checkins (collapsed) */}
-      <CheckinsList refreshKey={refreshKey} />
+  return (
+    <div className="space-y-5 pb-8">
+      {/* Greeting */}
+      <header className="flex items-end justify-between flex-wrap gap-3 animate-fade-in">
+        <div>
+          <p className="text-muted-foreground text-sm">Зеркало</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Привет, {name} <span aria-hidden>👋</span>
+          </h1>
+        </div>
+        <Button variant="outline" size="sm" onClick={seedDemo} disabled={seeding} className="rounded-full gap-2">
+          <Sparkles className="size-3.5" />
+          {seeding ? "Загружаю…" : "Демо-данные"}
+        </Button>
+      </header>
+
+      {/* Quick check-in CTA + bulk toggle */}
+      <Card className="ios-card p-4 animate-slide-up" style={{ animationDelay: "60ms", animationFillMode: "both" }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="size-10 rounded-full bg-primary/15 text-primary grid place-items-center shrink-0">
+            <Plus className="size-5" />
+          </div>
+          <div className="flex-1 min-w-[140px]">
+            <p className="font-semibold text-sm">Новый чек-ин</p>
+            <p className="text-xs text-muted-foreground">
+              {todayCount > 0 ? `Сегодня: ${todayCount} ${todayCount === 1 ? "запись" : "записей"}` : "Запиши настроение за минуту"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={quickMode === "single" ? "default" : "outline"}
+              onClick={() => setQuickMode((m) => m === "single" ? "none" : "single")}
+              className="rounded-full gap-1.5"
+            >
+              <Plus className="size-3.5" /> Один
+            </Button>
+            <Button
+              size="sm"
+              variant={quickMode === "bulk" ? "default" : "outline"}
+              onClick={() => setQuickMode((m) => m === "bulk" ? "none" : "bulk")}
+              className="rounded-full gap-1.5"
+            >
+              <ListChecks className="size-3.5" /> Несколько
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {quickMode === "single" && (
+        <MiniCheckin onSaved={() => { setRefreshKey((k) => k + 1); setQuickMode("none"); }} />
+      )}
+      {quickMode === "bulk" && (
+        <BulkCheckin onSaved={() => { setRefreshKey((k) => k + 1); setQuickMode("none"); }} />
+      )}
+
+      {/* DnD blocks */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
+          <div className="space-y-5">
+            {order.map((id, i) => (
+              <SortableSection key={id} id={id}>
+                <div
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
+                >
+                  {sections[id]}
+                </div>
+              </SortableSection>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 };
