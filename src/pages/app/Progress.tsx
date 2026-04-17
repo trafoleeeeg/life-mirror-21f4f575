@@ -58,6 +58,10 @@ const Progress = () => {
   const [rows, setRows] = useState<StatRow[]>([]);
   const [active, setActive] = useState<Set<StatKey>>(new Set(STAT_ORDER));
   const [checkinDates, setCheckinDates] = useState<string[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [unlocked, setUnlocked] = useState<Map<string, string>>(new Map());
+  const [streak, setStreak] = useState<number>(0);
+  const [pings, setPings] = useState<PingRow[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -73,14 +77,57 @@ const Progress = () => {
 
   useEffect(() => {
     if (!user) return;
-    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
-    supabase
-      .from("checkins")
-      .select("created_at")
-      .eq("user_id", user.id)
-      .gte("created_at", since)
-      .then(({ data }) => setCheckinDates((data || []).map((c) => c.created_at)));
+    const since90 = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+    void (async () => {
+      const [checkRes, achRes, uaRes, streakRes, pingRes] = await Promise.all([
+        supabase.from("checkins").select("created_at").eq("user_id", user.id).gte("created_at", since90),
+        supabase.from("achievements").select("*").order("threshold", { ascending: true }),
+        supabase.from("user_achievements").select("achievement_id, unlocked_at").eq("user_id", user.id),
+        supabase.rpc("compute_ping_streak", { _user: user.id }),
+        supabase
+          .from("mood_pings")
+          .select("mood, created_at")
+          .eq("user_id", user.id)
+          .gte("created_at", since90)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+      ]);
+      setCheckinDates((checkRes.data || []).map((c) => c.created_at));
+      setAchievements((achRes.data || []) as Achievement[]);
+      const m = new Map<string, string>();
+      (uaRes.data || []).forEach((u: UserAch) => m.set(u.achievement_id, u.unlocked_at));
+      setUnlocked(m);
+      setStreak(typeof streakRes.data === "number" ? streakRes.data : 0);
+      setPings((pingRes.data || []) as PingRow[]);
+    })();
   }, [user]);
+
+  // mood by hour of day
+  const hourlyMood = useMemo(() => {
+    const buckets: { sum: number; n: number }[] = Array.from({ length: 24 }, () => ({
+      sum: 0,
+      n: 0,
+    }));
+    for (const p of pings) {
+      const h = new Date(p.created_at).getHours();
+      buckets[h].sum += p.mood;
+      buckets[h].n += 1;
+    }
+    return buckets.map((b, h) => ({
+      hour: h,
+      label: `${String(h).padStart(2, "0")}:00`,
+      mood: b.n ? Number((b.sum / b.n).toFixed(2)) : 0,
+      count: b.n,
+    }));
+  }, [pings]);
+
+  const bestWorst = useMemo(() => {
+    const valid = hourlyMood.filter((h) => h.count >= 2);
+    if (!valid.length) return null;
+    const best = valid.reduce((a, b) => (b.mood > a.mood ? b : a));
+    const worst = valid.reduce((a, b) => (b.mood < a.mood ? b : a));
+    return { best, worst };
+  }, [hourlyMood]);
 
   const chartData = useMemo(() => {
     return rows.map((r) => {
