@@ -184,5 +184,23 @@ export async function seedDemoData(userId: string) {
   }
   await supabase.from("glyph_stats").insert(statsHistory);
 
-  return { pings: pings.length, sleeps: sessions.length };
+  // 5) Seed социальное демо: 15 фейковых юзеров + ~150 постов с реакциями/комментами
+  let users = 0, posts = 0;
+  try {
+    const { data, error } = await supabase.rpc("seed_demo_community", { _caller: userId });
+    if (error) throw error;
+    const result = (data as { users?: number; posts?: number }) || {};
+    users = result.users ?? 0;
+    posts = result.posts ?? 0;
+  } catch (e) {
+    console.warn("seed_demo_community failed", e);
+  }
+
+  return { pings: pings.length, sleeps: sessions.length, users, posts };
+}
+
+export async function clearDemoCommunity(userId: string) {
+  const { data, error } = await supabase.rpc("clear_demo_community", { _caller: userId });
+  if (error) throw error;
+  return (data as { removed?: number })?.removed ?? 0;
 }

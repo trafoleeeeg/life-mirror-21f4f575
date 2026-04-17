@@ -515,6 +515,38 @@ export type Database = {
           },
         ]
       }
+      post_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reaction: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reaction: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reaction?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           ai_author: string | null
@@ -522,7 +554,10 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          image_url: string | null
           is_ai: boolean
+          repost_quote: string | null
+          reposted_from: string | null
           updated_at: string
           user_id: string | null
         }
@@ -532,7 +567,10 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          image_url?: string | null
           is_ai?: boolean
+          repost_quote?: string | null
+          reposted_from?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -542,48 +580,68 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           is_ai?: boolean
+          repost_quote?: string | null
+          reposted_from?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_reposted_from_fkey"
+            columns: ["reposted_from"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           ai_tone: string
           avatar_url: string | null
+          bio: string | null
           created_at: string
           deleted_at: string | null
           display_name: string | null
           email_notifications: boolean
           id: string
+          is_demo: boolean
           language: string
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
           ai_tone?: string
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           deleted_at?: string | null
           display_name?: string | null
           email_notifications?: boolean
           id?: string
+          is_demo?: boolean
           language?: string
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
           ai_tone?: string
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           deleted_at?: string | null
           display_name?: string | null
           email_notifications?: boolean
           id?: string
+          is_demo?: boolean
           language?: string
           updated_at?: string
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -889,18 +947,30 @@ export type Database = {
       public_profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          created_at: string | null
           display_name: string | null
+          is_demo: boolean | null
           user_id: string | null
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
           display_name?: string | null
+          is_demo?: boolean | null
           user_id?: string | null
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
           display_name?: string | null
+          is_demo?: boolean | null
           user_id?: string | null
+          username?: string | null
         }
         Relationships: []
       }
@@ -948,6 +1018,7 @@ export type Database = {
           sleep_sessions: number
         }[]
       }
+      clear_demo_community: { Args: { _caller: string }; Returns: Json }
       compute_ping_streak: { Args: { _user: string }; Returns: number }
       has_role: {
         Args: {
@@ -960,6 +1031,7 @@ export type Database = {
         Args: { _drop: string; _keep: string }
         Returns: undefined
       }
+      seed_demo_community: { Args: { _caller: string }; Returns: Json }
       try_unlock: { Args: { _code: string; _user: string }; Returns: undefined }
     }
     Enums: {

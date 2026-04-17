@@ -99,7 +99,7 @@ const Mirror = () => {
     setSeeding(true);
     try {
       const r = await seedDemoData(user.id);
-      toast.success(`Загружено: ${r.pings} чек-инов, ${r.sleeps} ночей`);
+      toast.success(`Демо: ${r.pings} чек-инов, ${r.sleeps} ночей, ${r.users} юзеров, ${r.posts} постов`);
       setRefreshKey((k) => k + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка загрузки демо");
