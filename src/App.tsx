@@ -1,11 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Install from "./pages/Install";
 import { AppShell } from "./components/layout/AppShell";
@@ -16,7 +15,6 @@ import Graph from "./pages/app/Graph";
 import Dashboard from "./pages/app/Dashboard";
 import Mirror from "./pages/app/Mirror";
 import Sleep from "./pages/app/Sleep";
-import { Navigate } from "react-router-dom";
 import Feed from "./pages/app/Feed";
 import DMs from "./pages/app/DMs";
 import Progress from "./pages/app/Progress";
@@ -37,7 +35,8 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            {/* Корень сразу ведёт в апку. Если не залогинен — ProtectedRoute редиректит в /auth. */}
+            <Route path="/" element={<Navigate to="/app" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/install" element={<Install />} />
             <Route

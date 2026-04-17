@@ -301,6 +301,51 @@ export type Database = {
         }
         Relationships: []
       }
+      mood_forecasts: {
+        Row: {
+          actual: number | null
+          actual_n: number | null
+          baseline: number
+          contributions: Json
+          created_at: string
+          day: string
+          id: string
+          morning_text: string | null
+          predicted: number
+          reconciled_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual?: number | null
+          actual_n?: number | null
+          baseline: number
+          contributions?: Json
+          created_at?: string
+          day: string
+          id?: string
+          morning_text?: string | null
+          predicted: number
+          reconciled_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual?: number | null
+          actual_n?: number | null
+          baseline?: number
+          contributions?: Json
+          created_at?: string
+          day?: string
+          id?: string
+          morning_text?: string | null
+          predicted?: number
+          reconciled_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mood_pings: {
         Row: {
           activities: string[]

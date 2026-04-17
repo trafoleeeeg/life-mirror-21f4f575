@@ -8,6 +8,7 @@
 //   • Сравнение с предыдущим периодом
 //   • Карта связей с подсветкой и группировкой
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,11 @@ import {
   ToggleGroupItem,
 } from "@/components/ui/toggle-group";
 import {
+  Tooltip, TooltipTrigger, TooltipContent,
+} from "@/components/ui/tooltip";
+import {
   Sparkles, RefreshCw, TrendingUp, TrendingDown, Flame, Waves, Pin,
-  ArrowUpRight, ArrowDownRight, Minus, EyeOff, Lightbulb,
+  ArrowUpRight, ArrowDownRight, Minus, EyeOff, Lightbulb, HelpCircle, AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +33,7 @@ import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
 import {
   computeBaseline, computeImpact, computeCombos, computeRecommendations,
   compareImpactPeriods, filterByDays, computeEntitySeries,
+  formatDelta, formatDays, formatTrend, reliability,
   type PeriodDays, type ImpactRow, type ComboRow, type EntitySeriesPoint,
 } from "@/lib/lifeMap";
 import { EntityManager } from "@/components/graph/EntityManager";
@@ -39,6 +44,7 @@ const PERIODS: PeriodDays[] = [7, 30, 60, 90];
 
 const Graph = () => {
   const { user, session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [entities, setEntities] = useState<DbEntity[]>([]);
   const [edges, setEdges] = useState<DbEdge[]>([]);
   const [pings, setPings] = useState<PingRow[]>([]);
@@ -95,6 +101,22 @@ const Graph = () => {
       setLoading(false);
     });
   }, [user, reloadKey]);
+
+  // Фокус из URL (?focus=<id>) — выбираем сущность и подсвечиваем связи
+  useEffect(() => {
+    const focusId = searchParams.get("focus");
+    if (!focusId || !entities.length) return;
+    const ent = entities.find((e) => e.id === focusId);
+    if (ent) {
+      setSelected(ent);
+      requestAnimationFrame(() => {
+        document.getElementById("graph-connections")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const next = new URLSearchParams(searchParams);
+      next.delete("focus");
+      setSearchParams(next, { replace: true });
+    }
+  }, [entities, searchParams, setSearchParams]);
 
   const reload = () => setReloadKey((k) => k + 1);
 
@@ -540,7 +562,7 @@ const Graph = () => {
           )}
 
           {/* === КАРТА СВЯЗЕЙ === */}
-          <Card className="ios-card p-5">
+          <Card className="ios-card p-5" id="graph-connections">
             <div className="flex items-baseline justify-between mb-4">
               <h2 className="text-lg font-semibold tracking-tight">Карта связей</h2>
               <span className="text-xs text-muted-foreground">
