@@ -493,28 +493,34 @@ export type Database = {
       }
       posts: {
         Row: {
+          ai_author: string | null
           category: string
           content: string
           created_at: string
           id: string
+          is_ai: boolean
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          ai_author?: string | null
           category?: string
           content: string
           created_at?: string
           id?: string
+          is_ai?: boolean
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          ai_author?: string | null
           category?: string
           content?: string
           created_at?: string
           id?: string
+          is_ai?: boolean
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
