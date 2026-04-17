@@ -1,80 +1,93 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Sparkles, RefreshCw } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-interface Node {
+type EntityType = "event" | "person" | "topic" | "emotion";
+
+interface DbEntity {
   id: string;
+  type: EntityType;
   label: string;
-  type: "event" | "person" | "topic" | "emotion";
+  mentions: number;
+}
+interface DbEdge {
+  id: string;
+  a_id: string;
+  b_id: string;
+  strength: number;
+}
+
+interface Node extends DbEntity {
   x: number;
   y: number;
   vx: number;
   vy: number;
 }
-interface Edge {
-  a: string;
-  b: string;
-  strength: number;
-}
 
-const SEED_NODES: Omit<Node, "x" | "y" | "vx" | "vy">[] = [
-  { id: "me", label: "Я", type: "topic" },
-  { id: "work", label: "Работа", type: "topic" },
-  { id: "anya", label: "Аня", type: "person" },
-  { id: "fight", label: "Ссора 12.03", type: "event" },
-  { id: "anxiety", label: "Тревога", type: "emotion" },
-  { id: "run", label: "Утренний бег", type: "event" },
-  { id: "calm", label: "Покой", type: "emotion" },
-  { id: "money", label: "Деньги", type: "topic" },
-  { id: "sasha", label: "Саша", type: "person" },
-  { id: "gym", label: "Зал", type: "event" },
-  { id: "energy", label: "Энергия", type: "emotion" },
-  { id: "sleep", label: "Недосып", type: "event" },
-];
-const SEED_EDGES: Edge[] = [
-  { a: "me", b: "work", strength: 1 },
-  { a: "me", b: "anya", strength: 1 },
-  { a: "anya", b: "fight", strength: 0.9 },
-  { a: "fight", b: "anxiety", strength: 1 },
-  { a: "work", b: "money", strength: 0.7 },
-  { a: "money", b: "anxiety", strength: 0.6 },
-  { a: "me", b: "run", strength: 0.8 },
-  { a: "run", b: "calm", strength: 0.9 },
-  { a: "me", b: "sasha", strength: 0.6 },
-  { a: "sasha", b: "gym", strength: 0.7 },
-  { a: "gym", b: "energy", strength: 0.8 },
-  { a: "sleep", b: "anxiety", strength: 0.7 },
-  { a: "me", b: "sleep", strength: 0.6 },
-];
-
-const TYPE_COLOR: Record<Node["type"], string> = {
+const TYPE_COLOR: Record<EntityType, string> = {
   event: "hsl(var(--primary))",
   person: "hsl(var(--accent))",
   topic: "hsl(var(--growth))",
   emotion: "hsl(var(--tension))",
 };
 
+const TYPE_LABEL: Record<EntityType | "all", string> = {
+  all: "всё",
+  event: "события",
+  person: "люди",
+  topic: "темы",
+  emotion: "эмоции",
+};
+
 const Graph = () => {
+  const { user, session } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [nodes, setNodes] = useState<Node[]>(() =>
-    SEED_NODES.map((n) => ({
-      ...n,
-      x: 400 + (Math.random() - 0.5) * 300,
-      y: 300 + (Math.random() - 0.5) * 200,
-      vx: 0,
-      vy: 0,
-    })),
-  );
-  const [filter, setFilter] = useState<Node["type"] | "all">("all");
+  const [entities, setEntities] = useState<DbEntity[]>([]);
+  const [edges, setEdges] = useState<DbEdge[]>([]);
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [filter, setFilter] = useState<EntityType | "all">("all");
   const [selected, setSelected] = useState<Node | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const draggingRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
+  // Load from DB
   useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const [{ data: ents }, { data: eds }] = await Promise.all([
+        supabase
+          .from("graph_entities")
+          .select("id, type, label, mentions")
+          .eq("user_id", user.id),
+        supabase.from("graph_edges").select("id, a_id, b_id, strength").eq("user_id", user.id),
+      ]);
+      const e = (ents || []) as DbEntity[];
+      setEntities(e);
+      setEdges((eds || []) as DbEdge[]);
+      setNodes(
+        e.map((n) => ({
+          ...n,
+          x: 400 + (Math.random() - 0.5) * 300,
+          y: 300 + (Math.random() - 0.5) * 200,
+          vx: 0,
+          vy: 0,
+        })),
+      );
+    })();
+  }, [user]);
+
+  // Physics
+  useEffect(() => {
+    if (!nodes.length) return;
     let raf = 0;
     const step = () => {
       setNodes((prev) => {
         const next = prev.map((n) => ({ ...n }));
-        // repulsion
         for (let i = 0; i < next.length; i++) {
           for (let j = i + 1; j < next.length; j++) {
             const dx = next[j].x - next[i].x;
@@ -89,21 +102,20 @@ const Graph = () => {
             next[j].vy += fy;
           }
         }
-        // springs
-        for (const e of SEED_EDGES) {
-          const a = next.find((n) => n.id === e.a)!;
-          const b = next.find((n) => n.id === e.b)!;
+        for (const e of edges) {
+          const a = next.find((n) => n.id === e.a_id);
+          const b = next.find((n) => n.id === e.b_id);
+          if (!a || !b) continue;
           const dx = b.x - a.x;
           const dy = b.y - a.y;
           const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
-          const target = 120;
-          const f = (dist - target) * 0.02 * e.strength;
+          const target = 130;
+          const f = (dist - target) * 0.02 * Number(e.strength);
           a.vx += (dx / dist) * f;
           a.vy += (dy / dist) * f;
           b.vx -= (dx / dist) * f;
           b.vy -= (dy / dist) * f;
         }
-        // center pull + damping + integration
         for (const n of next) {
           if (draggingRef.current?.id === n.id) {
             n.vx = 0;
@@ -123,8 +135,9 @@ const Graph = () => {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [edges, nodes.length]);
 
+  // Render
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv) return;
@@ -133,25 +146,24 @@ const Graph = () => {
     const h = cv.height;
     ctx.clearRect(0, 0, w, h);
 
-    // edges
-    for (const e of SEED_EDGES) {
-      const a = nodes.find((n) => n.id === e.a);
-      const b = nodes.find((n) => n.id === e.b);
+    for (const e of edges) {
+      const a = nodes.find((n) => n.id === e.a_id);
+      const b = nodes.find((n) => n.id === e.b_id);
       if (!a || !b) continue;
-      const visible =
-        filter === "all" || a.type === filter || b.type === filter || a.id === "me" || b.id === "me";
-      ctx.strokeStyle = visible ? `hsla(188, 95%, 60%, ${0.15 + e.strength * 0.25})` : "hsla(220,15%,40%,0.08)";
-      ctx.lineWidth = 0.5 + e.strength * 1.2;
+      const visible = filter === "all" || a.type === filter || b.type === filter;
+      ctx.strokeStyle = visible
+        ? `hsla(188, 95%, 60%, ${0.15 + Number(e.strength) * 0.25})`
+        : "hsla(220,15%,40%,0.06)";
+      ctx.lineWidth = 0.5 + Number(e.strength) * 1.5;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
     }
 
-    // nodes
     for (const n of nodes) {
-      const dim = filter !== "all" && n.type !== filter && n.id !== "me";
-      const r = n.id === "me" ? 14 : 9;
+      const dim = filter !== "all" && n.type !== filter;
+      const r = 8 + Math.min(8, n.mentions);
       ctx.shadowBlur = dim ? 0 : 16;
       ctx.shadowColor = TYPE_COLOR[n.type];
       ctx.fillStyle = dim ? "hsla(220,15%,30%,0.5)" : TYPE_COLOR[n.type];
@@ -161,21 +173,23 @@ const Graph = () => {
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = dim ? "hsla(220,15%,50%,0.6)" : "hsla(220,25%,92%,0.95)";
-      ctx.font = `${n.id === "me" ? 13 : 11}px ui-sans-serif, system-ui`;
+      ctx.font = "11px ui-sans-serif, system-ui";
       ctx.textAlign = "center";
       ctx.fillText(n.label, n.x, n.y + r + 14);
     }
-  }, [nodes, filter]);
+  }, [nodes, edges, filter]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * e.currentTarget.width;
     const y = ((e.clientY - rect.top) / rect.height) * e.currentTarget.height;
-    const hit = nodes.find((n) => Math.hypot(n.x - x, n.y - y) < 18);
+    const hit = nodes.find((n) => Math.hypot(n.x - x, n.y - y) < 20);
     if (hit) {
       draggingRef.current = { id: hit.id, ox: x - hit.x, oy: y - hit.y };
       setSelected(hit);
       e.currentTarget.setPointerCapture(e.pointerId);
+    } else {
+      setSelected(null);
     }
   };
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -185,7 +199,9 @@ const Graph = () => {
     const y = ((e.clientY - rect.top) / rect.height) * e.currentTarget.height;
     setNodes((p) =>
       p.map((n) =>
-        n.id === draggingRef.current!.id ? { ...n, x: x - draggingRef.current!.ox, y: y - draggingRef.current!.oy } : n,
+        n.id === draggingRef.current!.id
+          ? { ...n, x: x - draggingRef.current!.ox, y: y - draggingRef.current!.oy }
+          : n,
       ),
     );
   };
@@ -193,13 +209,83 @@ const Graph = () => {
     draggingRef.current = null;
   };
 
+  const extractNow = async () => {
+    if (!session) return;
+    setExtracting(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-graph`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const json = await resp.json();
+      if (!resp.ok) {
+        toast.error(json.error || "Не удалось извлечь");
+      } else if (!json.entities) {
+        toast("Пока нет данных для графа", {
+          description: "Сделай чек-ин или поговори с психологом.",
+        });
+      } else {
+        toast.success(`Найдено: ${json.entities} узлов`, {
+          description: "Граф обновлён.",
+        });
+        // reload
+        if (user) {
+          const [{ data: ents }, { data: eds }] = await Promise.all([
+            supabase.from("graph_entities").select("id, type, label, mentions").eq("user_id", user.id),
+            supabase.from("graph_edges").select("id, a_id, b_id, strength").eq("user_id", user.id),
+          ]);
+          const e = (ents || []) as DbEntity[];
+          setEntities(e);
+          setEdges((eds || []) as DbEdge[]);
+          setNodes((prev) => {
+            const map = new Map(prev.map((n) => [n.id, n]));
+            return e.map((n) => {
+              const old = map.get(n.id);
+              return old
+                ? { ...n, x: old.x, y: old.y, vx: old.vx, vy: old.vy }
+                : {
+                    ...n,
+                    x: 400 + (Math.random() - 0.5) * 300,
+                    y: 300 + (Math.random() - 0.5) * 200,
+                    vx: 0,
+                    vy: 0,
+                  };
+            });
+          });
+        }
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Сеть недоступна");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <>
       <PageHeader
         eyebrow="зеркало связей"
         title="Граф"
-        description="События, люди, темы, эмоции — и связи между ними. Тяни узлы, чтобы исследовать."
-      />
+        description="Люди, события, темы, эмоции и связи — извлечены из твоих чек-инов и разговоров с AI."
+      >
+        <Button onClick={extractNow} disabled={extracting} size="sm" className="rounded-full">
+          {extracting ? (
+            <>
+              <RefreshCw className="size-4 mr-1.5 animate-spin" />
+              Анализирую…
+            </>
+          ) : (
+            <>
+              <Sparkles className="size-4 mr-1.5" />
+              Обновить из AI
+            </>
+          )}
+        </Button>
+      </PageHeader>
 
       <div className="flex flex-wrap gap-2 mb-4">
         {(["all", "event", "person", "topic", "emotion"] as const).map((f) => (
@@ -212,25 +298,39 @@ const Graph = () => {
                 : "border-border hover:border-primary/50"
             }`}
           >
-            {f === "all" ? "всё" : f}
+            {TYPE_LABEL[f]}
           </button>
         ))}
+        <span className="ml-auto text-xs text-muted-foreground self-center">
+          {entities.length} узлов · {edges.length} связей
+        </span>
       </div>
 
       <div className="grid lg:grid-cols-[1fr,260px] gap-4">
-        <Card className="glass p-2 overflow-hidden">
-          <canvas
-            ref={canvasRef}
-            width={800}
-            height={600}
-            className="w-full h-[500px] rounded-md cursor-grab active:cursor-grabbing"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-          />
+        <Card className="ios-card p-2 overflow-hidden">
+          {entities.length === 0 ? (
+            <div className="h-[500px] flex flex-col items-center justify-center text-center px-6">
+              <Sparkles className="size-10 text-primary/60 mb-3" />
+              <p className="font-medium mb-1">Граф пуст</p>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Сделай несколько чек-инов с заметками или поговори с психологом — и нажми «Обновить
+                из AI». Я найду людей, события, темы и эмоции в твоих текстах и нарисую связи.
+              </p>
+            </div>
+          ) : (
+            <canvas
+              ref={canvasRef}
+              width={800}
+              height={600}
+              className="w-full h-[500px] rounded-md cursor-grab active:cursor-grabbing"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+            />
+          )}
         </Card>
 
-        <Card className="glass p-4">
+        <Card className="ios-card p-4">
           {selected ? (
             <div className="space-y-3">
               <div>
@@ -239,25 +339,44 @@ const Graph = () => {
                   style={{ background: TYPE_COLOR[selected.type] }}
                 />
                 <span className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {selected.type}
+                  {TYPE_LABEL[selected.type]}
                 </span>
               </div>
               <h3 className="text-lg font-semibold">{selected.label}</h3>
               <p className="text-sm text-muted-foreground">
-                Связан с {SEED_EDGES.filter((e) => e.a === selected.id || e.b === selected.id).length} узлами.
+                Упоминаний: <span className="text-foreground">{selected.mentions}</span>
+                <br />
+                Связан с {edges.filter((e) => e.a_id === selected.id || e.b_id === selected.id).length}{" "}
+                узлами.
               </p>
               <div className="border-t border-border/60 pt-3">
                 <p className="mono text-[10px] uppercase tracking-widest text-primary/80 mb-2">
-                  паттерн
+                  ближайшие
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  В дни после «{selected.label}» энергия в среднем ниже на 23%.{" "}
-                  <span className="text-foreground/70">Гипотеза.</span>
-                </p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {edges
+                    .filter((e) => e.a_id === selected.id || e.b_id === selected.id)
+                    .slice(0, 5)
+                    .map((e) => {
+                      const otherId = e.a_id === selected.id ? e.b_id : e.a_id;
+                      const other = entities.find((n) => n.id === otherId);
+                      if (!other) return null;
+                      return (
+                        <li key={e.id} className="flex items-center justify-between">
+                          <span>{other.label}</span>
+                          <span className="mono opacity-70">
+                            {Math.round(Number(e.strength) * 100)}%
+                          </span>
+                        </li>
+                      );
+                    })}
+                </ul>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Кликни узел, чтобы увидеть детали и паттерны.</p>
+            <p className="text-sm text-muted-foreground">
+              Кликни узел, чтобы увидеть детали и ближайшие связи.
+            </p>
           )}
         </Card>
       </div>
