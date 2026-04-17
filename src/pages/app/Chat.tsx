@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,12 @@ import {
   Trash2,
   Check,
   X,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { bumpAutoExtract } from "@/lib/autoExtract";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -63,6 +65,7 @@ const Chat = () => {
   const [editTitle, setEditTitle] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showSessions, setShowSessions] = useState(false);
+  const [sessionSearch, setSessionSearch] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
   // Load tone + sessions
@@ -275,6 +278,7 @@ const Chat = () => {
           )
           .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at)),
       );
+      bumpAutoExtract();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Сеть недоступна");
     } finally {
@@ -282,79 +286,130 @@ const Chat = () => {
     }
   };
 
+  // Group sessions by recency bucket
+  const groupedSessions = useMemo(() => {
+    const q = sessionSearch.trim().toLowerCase();
+    const filtered = q
+      ? sessions.filter((s) => s.title.toLowerCase().includes(q))
+      : sessions;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekStart = new Date(today);
+    const dow = (today.getDay() + 6) % 7; // Mon = 0
+    weekStart.setDate(weekStart.getDate() - dow);
+
+    const groups: Record<string, Session[]> = {
+      "Сегодня": [],
+      "Вчера": [],
+      "На этой неделе": [],
+      "Раньше": [],
+    };
+    for (const s of filtered) {
+      const d = new Date(s.updated_at);
+      if (d >= today) groups["Сегодня"].push(s);
+      else if (d >= yesterday) groups["Вчера"].push(s);
+      else if (d >= weekStart) groups["На этой неделе"].push(s);
+      else groups["Раньше"].push(s);
+    }
+    return groups;
+  }, [sessions, sessionSearch]);
+
+  const renderSessionItem = (s: Session) => (
+    <div
+      key={s.id}
+      className={cn(
+        "group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors",
+        s.id === sessionId ? "bg-primary/15 text-primary" : "hover:bg-muted",
+      )}
+    >
+      {editingId === s.id ? (
+        <>
+          <Input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") renameSession(s.id, editTitle);
+              if (e.key === "Escape") setEditingId(null);
+            }}
+            className="h-7 text-sm"
+            autoFocus
+          />
+          <button onClick={() => renameSession(s.id, editTitle)} className="p-1 hover:text-primary">
+            <Check className="size-3.5" />
+          </button>
+          <button onClick={() => setEditingId(null)} className="p-1 hover:text-destructive">
+            <X className="size-3.5" />
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => {
+              setSessionId(s.id);
+              setShowSessions(false);
+            }}
+            className="flex-1 flex items-center gap-2 min-w-0 text-left"
+          >
+            <MessageCircle className="size-3.5 shrink-0 opacity-60" />
+            <span className="truncate">{s.title}</span>
+          </button>
+          <button
+            onClick={() => {
+              setEditingId(s.id);
+              setEditTitle(s.title);
+            }}
+            className="p-1 opacity-0 group-hover:opacity-100 hover:text-primary transition-opacity"
+            aria-label="Переименовать"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+          <button
+            onClick={() => setDeleteId(s.id)}
+            className="p-1 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+            aria-label="Удалить"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   const SessionList = (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <Button
         onClick={newSession}
         variant="outline"
         size="sm"
-        className="w-full justify-start rounded-lg mb-2"
+        className="w-full justify-start rounded-lg"
       >
         <Plus className="size-4 mr-1.5" /> Новая сессия
       </Button>
-      {sessions.map((s) => (
-        <div
-          key={s.id}
-          className={cn(
-            "group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors",
-            s.id === sessionId ? "bg-primary/15 text-primary" : "hover:bg-muted",
-          )}
-        >
-          {editingId === s.id ? (
-            <>
-              <Input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") renameSession(s.id, editTitle);
-                  if (e.key === "Escape") setEditingId(null);
-                }}
-                className="h-7 text-sm"
-                autoFocus
-              />
-              <button
-                onClick={() => renameSession(s.id, editTitle)}
-                className="p-1 hover:text-primary"
-              >
-                <Check className="size-3.5" />
-              </button>
-              <button onClick={() => setEditingId(null)} className="p-1 hover:text-destructive">
-                <X className="size-3.5" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  setSessionId(s.id);
-                  setShowSessions(false);
-                }}
-                className="flex-1 flex items-center gap-2 min-w-0 text-left"
-              >
-                <MessageCircle className="size-3.5 shrink-0 opacity-60" />
-                <span className="truncate">{s.title}</span>
-              </button>
-              <button
-                onClick={() => {
-                  setEditingId(s.id);
-                  setEditTitle(s.title);
-                }}
-                className="p-1 opacity-0 group-hover:opacity-100 hover:text-primary transition-opacity"
-                aria-label="Переименовать"
-              >
-                <Pencil className="size-3.5" />
-              </button>
-              <button
-                onClick={() => setDeleteId(s.id)}
-                className="p-1 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-                aria-label="Удалить"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </>
-          )}
-        </div>
-      ))}
+      <div className="relative">
+        <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={sessionSearch}
+          onChange={(e) => setSessionSearch(e.target.value)}
+          placeholder="Поиск сессий"
+          className="h-8 text-sm pl-8 rounded-lg"
+        />
+      </div>
+      {Object.entries(groupedSessions).map(([label, list]) =>
+        list.length === 0 ? null : (
+          <div key={label} className="space-y-1">
+            <p className="mono text-[9px] uppercase tracking-widest text-muted-foreground px-2 pt-1">
+              {label}
+            </p>
+            {list.map(renderSessionItem)}
+          </div>
+        ),
+      )}
+      {sessionSearch && Object.values(groupedSessions).every((g) => g.length === 0) && (
+        <p className="text-xs text-muted-foreground text-center py-3">Ничего не найдено</p>
+      )}
     </div>
   );
 

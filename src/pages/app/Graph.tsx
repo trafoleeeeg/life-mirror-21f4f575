@@ -44,6 +44,14 @@ const TYPE_LABEL: Record<EntityType | "all", string> = {
   emotion: "эмоции",
 };
 
+interface ContextItem {
+  id: string;
+  kind: "checkin" | "chat";
+  text: string;
+  date: string;
+  meta?: string;
+}
+
 const Graph = () => {
   const { user, session } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -52,6 +60,8 @@ const Graph = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [filter, setFilter] = useState<EntityType | "all">("all");
   const [selected, setSelected] = useState<Node | null>(null);
+  const [context, setContext] = useState<ContextItem[]>([]);
+  const [contextLoading, setContextLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const draggingRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
@@ -80,6 +90,65 @@ const Graph = () => {
       );
     })();
   }, [user]);
+
+  // Load real check-ins / chat messages mentioning the selected entity
+  useEffect(() => {
+    if (!user || !selected) {
+      setContext([]);
+      return;
+    }
+    let cancelled = false;
+    setContextLoading(true);
+    (async () => {
+      const label = selected.label;
+      const pattern = `%${label}%`;
+      const [checkinsResp, chatResp] = await Promise.all([
+        supabase
+          .from("checkins")
+          .select("id, mode, intent, note, tags, created_at")
+          .eq("user_id", user.id)
+          .or(`note.ilike.${pattern},intent.ilike.${pattern},tags.cs.{${label.toLowerCase()}}`)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("chat_messages")
+          .select("id, role, content, created_at")
+          .eq("user_id", user.id)
+          .ilike("content", pattern)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
+
+      if (cancelled) return;
+      const items: ContextItem[] = [];
+      for (const c of checkinsResp.data || []) {
+        const text = [c.intent, c.note].filter(Boolean).join(" · ") ||
+          (c.tags?.length ? `теги: ${c.tags.join(", ")}` : "(без текста)");
+        items.push({
+          id: `c-${c.id}`,
+          kind: "checkin",
+          text,
+          date: c.created_at,
+          meta: c.mode,
+        });
+      }
+      for (const m of chatResp.data || []) {
+        items.push({
+          id: `m-${m.id}`,
+          kind: "chat",
+          text: m.content,
+          date: m.created_at,
+          meta: m.role === "user" ? "ты" : "ai",
+        });
+      }
+      items.sort((a, b) => +new Date(b.date) - +new Date(a.date));
+      setContext(items.slice(0, 30));
+      setContextLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, selected]);
 
   // Physics
   useEffect(() => {
@@ -330,7 +399,7 @@ const Graph = () => {
           )}
         </Card>
 
-        <Card className="ios-card p-4">
+        <Card className="ios-card p-4 max-h-[600px] overflow-y-auto">
           {selected ? (
             <div className="space-y-3">
               <div>
@@ -372,10 +441,49 @@ const Graph = () => {
                     })}
                 </ul>
               </div>
+
+              <div className="border-t border-border/60 pt-3">
+                <p className="mono text-[10px] uppercase tracking-widest text-primary/80 mb-2">
+                  упоминания
+                </p>
+                {contextLoading ? (
+                  <p className="text-xs text-muted-foreground">Ищу…</p>
+                ) : context.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Прямых упоминаний в чек-инах и чате не нашлось.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {context.map((c) => (
+                      <li
+                        key={c.id}
+                        className="text-xs rounded-lg border border-border/60 p-2 bg-card/50"
+                      >
+                        <div className="flex items-center justify-between mb-1 mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                          <span>
+                            {c.kind === "checkin" ? "чек-ин" : "чат"}
+                            {c.meta ? ` · ${c.meta}` : ""}
+                          </span>
+                          <span>
+                            {new Date(c.date).toLocaleDateString("ru", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-foreground/90 leading-snug line-clamp-3">
+                          {c.text}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Кликни узел, чтобы увидеть детали и ближайшие связи.
+              Кликни узел, чтобы увидеть детали, ближайшие связи и реальные упоминания
+              в чек-инах и сообщениях.
             </p>
           )}
         </Card>
