@@ -37,8 +37,6 @@ const Feed = () => {
   const [myName, setMyName] = useState<string>("");
   const [posts, setPosts] = useState<ThreadPostData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState("");
-  const [posting, setPosting] = useState(false);
   const [scope, setScope] = useState<"all" | "following">("all");
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [openComments, setOpenComments] = useState<string | null>(null);
