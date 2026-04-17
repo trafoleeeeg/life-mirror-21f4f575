@@ -22,20 +22,16 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const CRON_SECRET = Deno.env.get("CRON_SECRET");
+    const SUPABASE_ANON = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-    // Простая защита: либо запрос с CRON секретом, либо ручной запуск с тем же
+    // Защита: должен прийти валидный Authorization (cron-вызов несёт anon, ручной — тоже)
     const auth = req.headers.get("authorization") || "";
-    const xCron = req.headers.get("x-cron-secret") || "";
-    const isCron = CRON_SECRET && (auth.includes(CRON_SECRET) || xCron === CRON_SECRET);
-    if (!isCron) {
-      // Разрешим ручной вызов при отсутствии секрета — но только если переменной нет
-      if (CRON_SECRET) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const token = auth.replace(/^Bearer\s+/i, "");
+    if (!token || (token !== SUPABASE_ANON && token !== SERVICE_ROLE)) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
