@@ -10,8 +10,10 @@ import {
   BookOpen,
   Settings,
   Bell,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/lib/useIsAdmin";
 
 /** Primary tabs shown on mobile bottom bar (4 max). */
 const primary = [
@@ -34,6 +36,10 @@ const sidebarNav = [
 ];
 
 export const AppShell = () => {
+  const { isAdmin } = useIsAdmin();
+  const nav = isAdmin
+    ? [...sidebarNav, { to: "/app/admin", label: "Админ", icon: ShieldCheck }]
+    : sidebarNav;
   return (
     <div className="min-h-screen bg-background flex">
       {/* Desktop sidebar */}
@@ -47,7 +53,7 @@ export const AppShell = () => {
           </NavLink>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {sidebarNav.map((item) => (
+          {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

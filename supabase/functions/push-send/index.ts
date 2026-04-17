@@ -109,8 +109,24 @@ Deno.serve(async (req) => {
             payload,
           );
           sent++;
+          await admin.from("push_events").insert({
+            user_id: pref.user_id,
+            subscription_id: sub.id,
+            event_type: "sent",
+            status_code: 201,
+            payload_kind: "mood-ping",
+          });
         } catch (err) {
           const status = (err as { statusCode?: number })?.statusCode;
+          const msg = (err as Error)?.message ?? String(err);
+          await admin.from("push_events").insert({
+            user_id: pref.user_id,
+            subscription_id: sub.id,
+            event_type: "failed",
+            status_code: status ?? null,
+            error: msg.slice(0, 500),
+            payload_kind: "mood-ping",
+          });
           if (status === 404 || status === 410) {
             await admin.from("push_subscriptions").delete().eq("id", sub.id);
             dropped++;

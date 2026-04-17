@@ -47,6 +47,33 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          ip: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          ip?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -351,6 +378,7 @@ export type Database = {
           ai_tone: string
           avatar_url: string | null
           created_at: string
+          deleted_at: string | null
           display_name: string | null
           email_notifications: boolean
           id: string
@@ -362,6 +390,7 @@ export type Database = {
           ai_tone?: string
           avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           display_name?: string | null
           email_notifications?: boolean
           id?: string
@@ -373,6 +402,7 @@ export type Database = {
           ai_tone?: string
           avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
           display_name?: string | null
           email_notifications?: boolean
           id?: string
@@ -381,6 +411,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      push_events: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_type: string
+          id: string
+          payload_kind: string | null
+          status_code: number | null
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_type: string
+          id?: string
+          payload_kind?: string | null
+          status_code?: number | null
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_type?: string
+          id?: string
+          payload_kind?: string | null
+          status_code?: number | null
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -563,6 +634,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_profiles: {
@@ -593,11 +685,52 @@ export type Database = {
         Args: { _code: string; _user: string }
         Returns: undefined
       }
+      admin_list_users: {
+        Args: never
+        Returns: {
+          achievements_count: number
+          ai_tone: string
+          avatar_url: string
+          avg_mood: number
+          checkins_count: number
+          created_at: string
+          deleted_at: string
+          display_name: string
+          email: string
+          is_admin: boolean
+          language: string
+          last_activity: string
+          last_sign_in_at: string
+          pings_count: number
+          sleep_count: number
+          user_id: string
+        }[]
+      }
+      admin_set_deleted: {
+        Args: { _deleted: boolean; _user: string }
+        Returns: undefined
+      }
+      admin_user_activity: {
+        Args: { _days?: number; _user: string }
+        Returns: {
+          checkins: number
+          day: string
+          pings: number
+          sleep_sessions: number
+        }[]
+      }
       compute_ping_streak: { Args: { _user: string }; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       try_unlock: { Args: { _code: string; _user: string }; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -724,6 +857,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
