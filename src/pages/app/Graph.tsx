@@ -28,10 +28,12 @@ import type { DbEntity, DbEdge, PingRow, CheckinRow, EntityType } from "@/types/
 import { TYPE_LABEL, TYPE_TOKEN, displayLabel } from "@/types/lifeMap";
 import {
   computeBaseline, computeImpact, computeCombos, computeRecommendations,
-  compareImpactPeriods, filterByDays, type PeriodDays, type ImpactRow, type ComboRow,
+  compareImpactPeriods, filterByDays, computeEntitySeries,
+  type PeriodDays, type ImpactRow, type ComboRow, type EntitySeriesPoint,
 } from "@/lib/lifeMap";
 import { EntityManager } from "@/components/graph/EntityManager";
 import { AddEntityDialog } from "@/components/graph/AddEntityDialog";
+import { EntitySparkline } from "@/components/graph/EntitySparkline";
 
 const PERIODS: PeriodDays[] = [7, 30, 60, 90];
 
@@ -158,6 +160,15 @@ const Graph = () => {
   );
 
   const comparison = useMemo(() => compareImpactPeriods(impact, prevImpact), [impact, prevImpact]);
+
+  // Серии mood + маркеры упоминаний для каждой видимой сущности (для sparkline / timeline)
+  const seriesMap = useMemo(() => {
+    const m = new Map<string, EntitySeriesPoint[]>();
+    visibleEntities.forEach((e) => {
+      m.set(e.id, computeEntitySeries(e, periodPings, periodCheckins, period));
+    });
+    return m;
+  }, [visibleEntities, periodPings, periodCheckins, period]);
 
   // === Эмоциональный ландшафт ===
   const emotions = visibleEntities.filter((e) => e.type === "emotion");
@@ -386,7 +397,13 @@ const Graph = () => {
               </div>
               <ul className="space-y-1.5">
                 {pinned.map((row) => (
-                  <ImpactRowItem key={row.ent.id} row={row} onPick={(e) => setSelected(e)} onEdit={(e) => setManagerEnt(e)} />
+                  <ImpactRowItem
+                    key={row.ent.id}
+                    row={row}
+                    series={seriesMap.get(row.ent.id)}
+                    onPick={(e) => setSelected(e)}
+                    onEdit={(e) => setManagerEnt(e)}
+                  />
                 ))}
               </ul>
             </Card>
@@ -400,6 +417,7 @@ const Graph = () => {
               tone="up"
               items={charging}
               baseline={baseline}
+              seriesMap={seriesMap}
               onPick={(e) => setSelected(e)}
               onEdit={(e) => setManagerEnt(e)}
             />
@@ -409,6 +427,7 @@ const Graph = () => {
               tone="down"
               items={draining}
               baseline={baseline}
+              seriesMap={seriesMap}
               onPick={(e) => setSelected(e)}
               onEdit={(e) => setManagerEnt(e)}
             />
@@ -603,12 +622,18 @@ const Graph = () => {
 // === СУБ-КОМПОНЕНТЫ ===
 
 const ImpactRowItem = ({
-  row, onPick, onEdit,
-}: { row: ImpactRow; onPick: (e: DbEntity) => void; onEdit: (e: DbEntity) => void }) => {
+  row, series, onPick, onEdit,
+}: {
+  row: ImpactRow;
+  series?: EntitySeriesPoint[];
+  onPick: (e: DbEntity) => void;
+  onEdit: (e: DbEntity) => void;
+}) => {
   const tone = row.delta >= 0 ? "var(--ring-exercise)" : "var(--stat-body)";
   const Trend = row.delta >= 0 ? TrendingUp : TrendingDown;
   const TrendArrow = row.trend > 0.3 ? ArrowUpRight : row.trend < -0.3 ? ArrowDownRight : Minus;
   const trendColor = row.trend > 0.3 ? "var(--ring-exercise)" : row.trend < -0.3 ? "var(--stat-body)" : "var(--muted-foreground)";
+  const sparkTone = row.delta >= 0.2 ? "up" : row.delta <= -0.2 ? "down" : "neutral";
   return (
     <li className="group">
       <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-secondary/50 transition-colors">
@@ -616,6 +641,9 @@ const ImpactRowItem = ({
           {row.ent.pinned && <Pin className="size-3 text-primary shrink-0" />}
           <span className="size-2 rounded-full shrink-0" style={{ background: `hsl(${TYPE_TOKEN[row.ent.type]})` }} />
           <span className="font-medium truncate flex-1">{displayLabel(row.ent)}</span>
+          {series && series.length > 0 && (
+            <EntitySparkline series={series} tone={sparkTone} />
+          )}
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
             {row.avg?.toFixed(1)} · {row.daysCount}d
           </span>
@@ -643,13 +671,14 @@ const ImpactRowItem = ({
 };
 
 const ImpactCard = ({
-  title, icon, tone, items, baseline, onPick, onEdit,
+  title, icon, tone, items, baseline, seriesMap, onPick, onEdit,
 }: {
   title: string;
   icon: React.ReactNode;
   tone: "up" | "down";
   items: ImpactRow[];
   baseline: number | null;
+  seriesMap: Map<string, EntitySeriesPoint[]>;
   onPick: (e: DbEntity) => void;
   onEdit: (e: DbEntity) => void;
 }) => {
@@ -679,7 +708,13 @@ const ImpactCard = ({
       ) : (
         <ul className="space-y-1.5">
           {items.map((row) => (
-            <ImpactRowItem key={row.ent.id} row={row} onPick={onPick} onEdit={onEdit} />
+            <ImpactRowItem
+              key={row.ent.id}
+              row={row}
+              series={seriesMap.get(row.ent.id)}
+              onPick={onPick}
+              onEdit={onEdit}
+            />
           ))}
         </ul>
       )}

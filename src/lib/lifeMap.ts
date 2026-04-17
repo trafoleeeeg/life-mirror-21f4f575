@@ -261,6 +261,97 @@ export const computeRecommendations = (
   return out.slice(0, 6);
 };
 
+/**
+ * Per-entity series: для каждого дня периода — { mood: avg mood в этот день (или null), mentioned: true/false }.
+ * Используется для sparkline и timeline маркеров.
+ */
+export interface EntitySeriesPoint {
+  day: string;
+  mood: number | null;
+  mentioned: boolean;
+}
+export const computeEntitySeries = (
+  entity: DbEntity,
+  pings: PingRow[],
+  checkins: CheckinRow[],
+  periodDays: number,
+): EntitySeriesPoint[] => {
+  const lc = entity.label.toLowerCase();
+  const dayMood = new Map<string, number[]>();
+  const mentionDays = new Set<string>();
+  const consider = (day: string, mood: number | null | undefined, text: string) => {
+    if (mood != null) {
+      if (!dayMood.has(day)) dayMood.set(day, []);
+      dayMood.get(day)!.push(mood);
+    }
+    if (text.toLowerCase().includes(lc)) mentionDays.add(day);
+  };
+  pings.forEach((p) =>
+    consider(p.created_at.slice(0, 10), p.mood, `${p.note ?? ""} ${p.activities.join(" ")}`),
+  );
+  checkins.forEach((c) =>
+    consider(c.created_at.slice(0, 10), c.mood, `${c.note ?? ""} ${c.intent ?? ""} ${c.tags.join(" ")}`),
+  );
+
+  const out: EntitySeriesPoint[] = [];
+  for (let i = periodDays - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const arr = dayMood.get(key);
+    out.push({
+      day: key,
+      mood: arr && arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : null,
+      mentioned: mentionDays.has(key),
+    });
+  }
+  return out;
+};
+
+/**
+ * Прогноз настроения по списку упомянутых сущностей из morning-чек-ина.
+ * Берём impact каждой сущности и складываем delta поверх baseline, ограничивая разумным max.
+ */
+export interface ForecastResult {
+  baseline: number;
+  predicted: number;
+  contributions: { ent: DbEntity; delta: number; n: number }[];
+  unknown: string[];
+}
+export const forecastFromMentions = (
+  mentions: string[],
+  entities: DbEntity[],
+  impact: ImpactRow[],
+  baseline: number | null,
+): ForecastResult | null => {
+  if (baseline == null || !mentions.length) return null;
+  const impactMap = new Map(impact.map((r) => [r.ent.id, r]));
+  const lcMentions = mentions.map((m) => m.trim().toLowerCase()).filter(Boolean);
+  const matched = new Set<string>();
+  const contributions: { ent: DbEntity; delta: number; n: number }[] = [];
+  const unknown: string[] = [];
+  lcMentions.forEach((m) => {
+    const ent = entities.find((e) => {
+      const l = e.label.toLowerCase();
+      return l === m || m.includes(l) || l.includes(m);
+    });
+    if (!ent) {
+      unknown.push(m);
+      return;
+    }
+    if (matched.has(ent.id)) return;
+    matched.add(ent.id);
+    const r = impactMap.get(ent.id);
+    if (r && r.n > 0) contributions.push({ ent, delta: r.delta, n: r.n });
+  });
+
+  // Дамперний коэффициент — несколько сильных сигналов не должны зашкаливать прогноз.
+  const sumDelta = contributions.reduce((s, c) => s + c.delta, 0);
+  const damped = Math.tanh(sumDelta / 3) * 3; // плавно ограничиваем до ±3
+  const predicted = Math.max(1, Math.min(10, baseline + damped));
+  return { baseline, predicted, contributions, unknown };
+};
+
 export const compareImpactPeriods = (
   current: ImpactRow[],
   previous: ImpactRow[],
