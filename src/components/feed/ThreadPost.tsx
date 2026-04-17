@@ -206,7 +206,7 @@ export const ThreadPost = ({
               onClick={onToggleLike}
               className={cn(
                 "flex items-center gap-1 px-2 py-1.5 rounded-full hover:bg-foreground/5 transition-colors text-xs",
-                post.liked && "text-rose-500",
+                post.liked && "text-destructive",
               )}
               aria-label="Нравится"
             >
