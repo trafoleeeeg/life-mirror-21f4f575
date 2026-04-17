@@ -32,6 +32,7 @@ interface Props {
 }
 
 export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }: Props) => {
+  const { user } = useAuth();
   const [label, setLabel] = useState("");
   const [type, setType] = useState<EntityType>("topic");
   const [category, setCategory] = useState("");
@@ -39,6 +40,8 @@ export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }:
   const [hidden, setHidden] = useState(false);
   const [mergeWith, setMergeWith] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [pings, setPings] = useState<PingRow[]>([]);
+  const [checkins, setCheckins] = useState<CheckinRow[]>([]);
 
   useEffect(() => {
     if (!entity) return;
@@ -49,6 +52,29 @@ export const EntityManager = ({ entity, allEntities, open, onClose, onChanged }:
     setHidden(!!entity.hidden);
     setMergeWith("");
   }, [entity]);
+
+  // Тянем данные за 30 дней для динамики, только когда drawer открыт
+  useEffect(() => {
+    if (!open || !user) return;
+    const since = new Date(Date.now() - 30 * 86400_000).toISOString();
+    void Promise.all([
+      supabase.from("mood_pings")
+        .select("created_at,mood,note,activities")
+        .eq("user_id", user.id).gte("created_at", since),
+      supabase.from("checkins")
+        .select("created_at,mood,note,intent,tags")
+        .eq("user_id", user.id).gte("created_at", since),
+    ]).then(([mp, ch]) => {
+      setPings((mp.data ?? []) as PingRow[]);
+      setCheckins((ch.data ?? []) as CheckinRow[]);
+    });
+  }, [open, user]);
+
+  const series = useMemo(
+    () => entity ? computeEntitySeries(entity, pings, checkins, 30) : [],
+    [entity, pings, checkins],
+  );
+  const mentionDays = series.filter((s) => s.mentioned).length;
 
   if (!entity) return null;
 
