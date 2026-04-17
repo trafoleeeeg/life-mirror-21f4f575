@@ -11,7 +11,7 @@ import { MoodKpis } from "@/components/dashboard/MoodKpis";
 import { MoodHeatmap } from "@/components/dashboard/MoodHeatmap";
 import { DailyBreakdown } from "@/components/dashboard/DailyBreakdown";
 import { ActivityImpact } from "@/components/dashboard/ActivityImpact";
-import { BalanceWheel } from "@/components/balance/BalanceWheel";
+import { BalanceWheelAuto } from "@/components/balance/BalanceWheelAuto";
 
 type Range = "today" | "7d" | "30d";
 
@@ -143,7 +143,7 @@ const Dashboard = () => {
           </span>
         </div>
         <div className="flex justify-center">
-          <BalanceWheel state={stats} size={360} />
+          <BalanceWheelAuto size={360} />
         </div>
       </Card>
     </>
