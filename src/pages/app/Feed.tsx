@@ -155,11 +155,12 @@ const Feed = () => {
         bucket = { heart: 0, fire: 0, thought: 0, hug: 0, sad: 0 };
         reactionsMap.set(r.post_id, bucket);
       }
-      bucket[r.reaction] = (bucket[r.reaction] || 0) + 1;
+      const kind = r.reaction as ReactionKind;
+      bucket[kind] = (bucket[kind] || 0) + 1;
       if (user && r.user_id === user.id) {
         let mine = myReactMap.get(r.post_id);
         if (!mine) { mine = new Set(); myReactMap.set(r.post_id, mine); }
-        mine.add(r.reaction);
+        mine.add(kind);
       }
     });
 
