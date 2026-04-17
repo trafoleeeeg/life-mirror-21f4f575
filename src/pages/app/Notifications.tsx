@@ -316,7 +316,12 @@ const Notifications = () => {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Примерно {Math.max(0, Math.floor(((prefs.end_hour - prefs.start_hour) * 60) / prefs.interval_minutes))} пингов в активный день
+              Примерно {(() => {
+                const span = prefs.end_hour > prefs.start_hour
+                  ? prefs.end_hour - prefs.start_hour
+                  : 24 - prefs.start_hour + prefs.end_hour;
+                return Math.max(0, Math.floor((span * 60) / prefs.interval_minutes));
+              })()} пингов в активный день
             </p>
           </div>
 
