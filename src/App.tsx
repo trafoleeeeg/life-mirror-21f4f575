@@ -23,6 +23,7 @@ import Settings from "./pages/app/Settings";
 import Notifications from "./pages/app/Notifications";
 import Ping from "./pages/app/Ping";
 import Admin from "./pages/app/Admin";
+import UserProfile from "./pages/app/UserProfile";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="notifications" element={<Notifications />} />
               <Route path="ping" element={<Ping />} />
               <Route path="admin" element={<Admin />} />
+              <Route path="u/:username" element={<UserProfile />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
