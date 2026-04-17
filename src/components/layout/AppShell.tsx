@@ -34,7 +34,7 @@ export const AppShell = () => {
       <aside className="hidden md:flex w-64 flex-col border-r border-border/60 bg-sidebar/80 backdrop-blur sticky top-0 h-screen">
         <div className="px-6 py-6 border-b border-sidebar-border/60">
           <NavLink to="/app" className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary shadow-neon" />
+            <span className="size-2 rounded-full bg-primary " />
             <span className="font-semibold tracking-wide">Inner Glyph</span>
           </NavLink>
           <p className="text-xs text-muted-foreground mt-2 mono">v0.1 · mirror mode</p>
@@ -80,7 +80,7 @@ export const AppShell = () => {
       <header className="md:hidden fixed top-0 inset-x-0 z-30 glass border-b border-border/60">
         <div className="flex items-center justify-between px-4 h-14">
           <NavLink to="/app" className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary shadow-neon" />
+            <span className="size-2 rounded-full bg-primary " />
             <span className="font-semibold">Inner Glyph</span>
           </NavLink>
           <span className="text-xs mono text-muted-foreground">{location.pathname}</span>

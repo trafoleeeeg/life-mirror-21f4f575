@@ -96,7 +96,7 @@ const DMs = () => {
               <div
                 className={cn(
                   "size-9 rounded-full shrink-0 flex items-center justify-center",
-                  c.ai ? "bg-primary/20" : "bg-aurora",
+                  c.ai ? "bg-primary/20" : "bg-primary",
                 )}
               >
                 {c.ai && <Sparkles className="size-4 text-primary" />}

@@ -160,7 +160,7 @@ const Chat = () => {
               className="resize-none min-h-[44px] max-h-32"
               rows={1}
             />
-            <Button onClick={send} size="icon" className="shrink-0 size-11 shadow-neon">
+            <Button onClick={send} size="icon" className="shrink-0 size-11 ">
               <Send className="size-4" />
             </Button>
           </div>

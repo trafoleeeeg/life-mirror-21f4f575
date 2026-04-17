@@ -103,7 +103,7 @@ const Feed = () => {
           rows={3}
         />
         <div className="flex justify-end mt-2">
-          <Button onClick={post} disabled={!draft.trim()} className="shadow-neon">
+          <Button onClick={post} disabled={!draft.trim()} className="">
             Опубликовать
           </Button>
         </div>
@@ -121,7 +121,7 @@ const Feed = () => {
                   <Sparkles className="size-4 text-primary" />
                 </div>
               ) : (
-                <div className="size-7 rounded-full bg-aurora" />
+                <div className="size-7 rounded-full bg-primary" />
               )}
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium flex items-center gap-2">
