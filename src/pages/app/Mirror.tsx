@@ -234,13 +234,19 @@ const Mirror = () => {
       )}
 
       {/* DnD */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setActiveId(null)}
+      >
         <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
-          <div className="flex flex-col gap-5 isolate">
+          <div className="flex flex-col gap-5">
             {order.map((id, i) => (
               <SortableSection key={id} id={id}>
                 <div
-                  className="animate-slide-up bg-background rounded-2xl"
+                  className="animate-slide-up rounded-2xl"
                   style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
                 >
                   {sections[id]}
@@ -249,6 +255,13 @@ const Mirror = () => {
             ))}
           </div>
         </SortableContext>
+        <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+          {activeId ? (
+            <div className="rounded-2xl shadow-2xl ring-1 ring-primary/30 bg-background opacity-95 cursor-grabbing">
+              {sections[activeId]}
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </div>
   );
