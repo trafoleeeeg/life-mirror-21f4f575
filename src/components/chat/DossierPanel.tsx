@@ -136,21 +136,20 @@ export const DossierPanel = ({ open, onClose }: Props) => {
 
   const saveManual = async () => {
     if (!user) return;
-    const { error } = await supabase.from("user_dossier").upsert(
-      {
-        user_id: user.id,
-        summary: dossier.summary,
-        patterns: dossier.patterns,
-        themes: dossier.themes,
-        triggers: dossier.triggers,
-        resources: dossier.resources,
-        values_list: dossier.values_list,
-        goals: dossier.goals,
-        relationships: dossier.relationships,
-        notes: dossier.notes,
-      },
-      { onConflict: "user_id" },
-    );
+    const payload = {
+      user_id: user.id,
+      summary: dossier.summary,
+      patterns: dossier.patterns as unknown as never,
+      themes: dossier.themes as unknown as never,
+      triggers: dossier.triggers as unknown as never,
+      resources: dossier.resources as unknown as never,
+      values_list: dossier.values_list as unknown as never,
+      goals: dossier.goals as unknown as never,
+      relationships: dossier.relationships as unknown as never,
+      notes: dossier.notes,
+    };
+    // @ts-expect-error — supabase upsert overload mis-types JSONB columns as Json union
+    const { error } = await supabase.from("user_dossier").upsert(payload, { onConflict: "user_id" });
     if (error) toast.error(error.message);
     else { toast.success("Сохранено"); setEditing(false); await load(); }
   };
