@@ -64,24 +64,30 @@ const Checkin = () => {
       return;
     }
 
-    // Recompute stats from full window and write a new snapshot
-    const { data: history } = await supabase
-      .from("checkins")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    const { data: lastStats } = await supabase
-      .from("glyph_stats")
-      .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
-      .eq("user_id", user.id)
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [{ data: history }, { data: pingHistory }, { data: lastStats }] = await Promise.all([
+      supabase
+        .from("checkins")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("mood_pings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("glyph_stats")
+        .select("body,mind,emotions,relationships,career,finance,creativity,meaning")
+        .eq("user_id", user.id)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
     const base = (lastStats as typeof defaultGlyphState | null) ?? defaultGlyphState;
-    const next = computeStatsFromCheckins(history ?? [], base);
+    const next = computeStatsFromCheckins(history ?? [], base, pingHistory ?? []);
     await supabase.from("glyph_stats").insert({ user_id: user.id, ...next });
 
     setSaving(false);

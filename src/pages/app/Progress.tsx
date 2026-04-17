@@ -7,7 +7,10 @@ import { STAT_META, STAT_ORDER, StatKey, defaultGlyphState } from "@/components/
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -16,7 +19,24 @@ import {
   YAxis,
   Legend,
 } from "recharts";
-import { TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { TrendingDown, TrendingUp, Minus, Flame, Trophy, Lock } from "lucide-react";
+
+interface Achievement {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  emoji: string;
+  category: string;
+}
+interface UserAch {
+  achievement_id: string;
+  unlocked_at: string;
+}
+interface PingRow {
+  mood: number;
+  created_at: string;
+}
 
 type Range = 7 | 30 | 90;
 
@@ -38,6 +58,10 @@ const Progress = () => {
   const [rows, setRows] = useState<StatRow[]>([]);
   const [active, setActive] = useState<Set<StatKey>>(new Set(STAT_ORDER));
   const [checkinDates, setCheckinDates] = useState<string[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [unlocked, setUnlocked] = useState<Map<string, string>>(new Map());
+  const [streak, setStreak] = useState<number>(0);
+  const [pings, setPings] = useState<PingRow[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -53,14 +77,57 @@ const Progress = () => {
 
   useEffect(() => {
     if (!user) return;
-    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
-    supabase
-      .from("checkins")
-      .select("created_at")
-      .eq("user_id", user.id)
-      .gte("created_at", since)
-      .then(({ data }) => setCheckinDates((data || []).map((c) => c.created_at)));
+    const since90 = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+    void (async () => {
+      const [checkRes, achRes, uaRes, streakRes, pingRes] = await Promise.all([
+        supabase.from("checkins").select("created_at").eq("user_id", user.id).gte("created_at", since90),
+        supabase.from("achievements").select("*").order("threshold", { ascending: true }),
+        supabase.from("user_achievements").select("achievement_id, unlocked_at").eq("user_id", user.id),
+        supabase.rpc("compute_ping_streak", { _user: user.id }),
+        supabase
+          .from("mood_pings")
+          .select("mood, created_at")
+          .eq("user_id", user.id)
+          .gte("created_at", since90)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+      ]);
+      setCheckinDates((checkRes.data || []).map((c) => c.created_at));
+      setAchievements((achRes.data || []) as Achievement[]);
+      const m = new Map<string, string>();
+      (uaRes.data || []).forEach((u: UserAch) => m.set(u.achievement_id, u.unlocked_at));
+      setUnlocked(m);
+      setStreak(typeof streakRes.data === "number" ? streakRes.data : 0);
+      setPings((pingRes.data || []) as PingRow[]);
+    })();
   }, [user]);
+
+  // mood by hour of day
+  const hourlyMood = useMemo(() => {
+    const buckets: { sum: number; n: number }[] = Array.from({ length: 24 }, () => ({
+      sum: 0,
+      n: 0,
+    }));
+    for (const p of pings) {
+      const h = new Date(p.created_at).getHours();
+      buckets[h].sum += p.mood;
+      buckets[h].n += 1;
+    }
+    return buckets.map((b, h) => ({
+      hour: h,
+      label: `${String(h).padStart(2, "0")}:00`,
+      mood: b.n ? Number((b.sum / b.n).toFixed(2)) : 0,
+      count: b.n,
+    }));
+  }, [pings]);
+
+  const bestWorst = useMemo(() => {
+    const valid = hourlyMood.filter((h) => h.count >= 2);
+    if (!valid.length) return null;
+    const best = valid.reduce((a, b) => (b.mood > a.mood ? b : a));
+    const worst = valid.reduce((a, b) => (b.mood < a.mood ? b : a));
+    return { best, worst };
+  }, [hourlyMood]);
 
   const chartData = useMemo(() => {
     return rows.map((r) => {
@@ -126,7 +193,7 @@ const Progress = () => {
       </PageHeader>
 
       {/* Summary */}
-      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+      <div className="grid sm:grid-cols-4 gap-3 mb-4">
         <Card className="ios-card p-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
             life score
@@ -155,11 +222,25 @@ const Progress = () => {
             )}
           </div>
         </Card>
+        <Card className="ios-card p-4 relative overflow-hidden">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            стрик пингов
+          </p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <Flame className={`size-6 ${streak > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+            <span className="text-3xl font-semibold">{streak}</span>
+            <span className="text-xs text-muted-foreground">дн</span>
+          </div>
+        </Card>
         <Card className="ios-card p-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            снимков
+            ачивок
           </p>
-          <p className="text-3xl font-semibold mt-1">{rows.length}</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <Trophy className="size-5 text-primary" />
+            <span className="text-3xl font-semibold">{unlocked.size}</span>
+            <span className="text-xs text-muted-foreground">/ {achievements.length}</span>
+          </div>
         </Card>
         <Card className="ios-card p-4">
           <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -238,6 +319,126 @@ const Progress = () => {
                 ))}
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      {/* Mood by hour of day */}
+      <Card className="ios-card p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            настроение по часам · 90 дней
+          </p>
+          {bestWorst && (
+            <div className="flex gap-3 text-xs">
+              <span className="text-primary">
+                ↑ лучший {bestWorst.best.label} ({bestWorst.best.mood.toFixed(1)})
+              </span>
+              <span className="text-destructive">
+                ↓ худший {bestWorst.worst.label} ({bestWorst.worst.mood.toFixed(1)})
+              </span>
+            </div>
+          )}
+        </div>
+        {pings.length < 3 ? (
+          <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground text-center px-6">
+            Сделай ещё пару пингов — и появятся твои лучшие и худшие часы дня.
+          </div>
+        ) : (
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourlyMood} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  interval={1}
+                />
+                <YAxis
+                  domain={[0, 10]}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 12,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number, _n, p) => [
+                    `${v} (${(p.payload as { count: number }).count} пингов)`,
+                    "Настроение",
+                  ]}
+                  labelFormatter={(h) => `${String(h).padStart(2, "0")}:00`}
+                />
+                <Bar dataKey="mood" radius={[4, 4, 0, 0]}>
+                  {hourlyMood.map((h) => {
+                    const color =
+                      h.count === 0
+                        ? "hsl(var(--muted))"
+                        : h.mood >= 7
+                        ? "hsl(var(--primary))"
+                        : h.mood >= 5
+                        ? "hsl(var(--stat-emotions))"
+                        : "hsl(var(--destructive))";
+                    return <Cell key={h.hour} fill={color} opacity={h.count === 0 ? 0.2 : 1} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      {/* Achievements */}
+      <Card className="ios-card p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            ачивки · {unlocked.size} из {achievements.length}
+          </p>
+        </div>
+        {achievements.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Ачивки скоро появятся.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {achievements.map((a) => {
+              const isUnlocked = unlocked.has(a.id);
+              return (
+                <div
+                  key={a.id}
+                  className={`relative p-3 rounded-xl border transition-all ${
+                    isUnlocked
+                      ? "border-primary/40 bg-gradient-to-br from-primary/10 to-primary/5"
+                      : "border-border bg-muted/30 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className={`text-2xl ${!isUnlocked && "grayscale"}`}>{a.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate">{a.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">
+                        {a.description}
+                      </p>
+                    </div>
+                    {!isUnlocked && (
+                      <Lock className="size-3 text-muted-foreground shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                  {isUnlocked && (
+                    <p className="mono text-[9px] uppercase text-primary/70 mt-2">
+                      {new Date(unlocked.get(a.id)!).toLocaleDateString("ru", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
