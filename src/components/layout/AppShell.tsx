@@ -1,9 +1,10 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import {
   Sparkles,
   MessageCircle,
   ClipboardCheck,
   Network,
+  User,
   LineChart,
   Rss,
   Mail,
@@ -13,7 +14,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const nav = [
+/** Primary tabs shown on mobile bottom bar (5 max — iOS guideline). */
+const primary = [
+  { to: "/app", label: "Глиф", icon: Sparkles, end: true },
+  { to: "/app/checkin", label: "Чек-ин", icon: ClipboardCheck },
+  { to: "/app/chat", label: "Психолог", icon: MessageCircle },
+  { to: "/app/graph", label: "Граф", icon: Network },
+  { to: "/app/settings", label: "Я", icon: User },
+];
+
+/** Full nav shown in desktop sidebar. */
+const sidebarNav = [
   { to: "/app", label: "Глиф", icon: Sparkles, end: true },
   { to: "/app/chat", label: "Психолог", icon: MessageCircle },
   { to: "/app/checkin", label: "Чек-ин", icon: ClipboardCheck },
@@ -26,31 +37,29 @@ const nav = [
 ];
 
 export const AppShell = () => {
-  const location = useLocation();
-
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border/60 bg-sidebar/80 backdrop-blur sticky top-0 h-screen">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-64 flex-col border-r border-border/60 bg-sidebar sticky top-0 h-screen">
         <div className="px-6 py-6 border-b border-sidebar-border/60">
-          <NavLink to="/app" className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary " />
-            <span className="font-semibold tracking-wide">Inner Glyph</span>
+          <NavLink to="/app" className="flex items-center gap-2.5">
+            <div className="size-7 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground text-xs font-bold">IG</span>
+            </div>
+            <span className="font-semibold tracking-tight">Inner Glyph</span>
           </NavLink>
-          <p className="text-xs text-muted-foreground mt-2 mono">v0.1 · mirror mode</p>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {nav.map((item) => (
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {sidebarNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors",
                   "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  isActive &&
-                    "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_2px_0_0_hsl(var(--primary))]",
+                  isActive && "bg-sidebar-accent text-primary font-medium",
                 )
               }
             >
@@ -64,9 +73,9 @@ export const AppShell = () => {
             to="/app/settings"
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm",
+                "flex items-center gap-3 px-3 py-2 rounded-xl text-sm",
                 "text-sidebar-foreground hover:bg-sidebar-accent",
-                isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+                isActive && "bg-sidebar-accent text-primary",
               )
             }
           >
@@ -76,41 +85,57 @@ export const AppShell = () => {
         </div>
       </aside>
 
-      {/* Mobile top nav */}
-      <header className="md:hidden fixed top-0 inset-x-0 z-30 glass border-b border-border/60">
-        <div className="flex items-center justify-between px-4 h-14">
+      {/* Mobile top bar (iOS-style large title is rendered per-page) */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 glass pt-safe">
+        <div className="flex items-center justify-between px-4 h-12">
           <NavLink to="/app" className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary " />
-            <span className="font-semibold">Inner Glyph</span>
+            <div className="size-6 rounded-md bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground text-[10px] font-bold">IG</span>
+            </div>
+            <span className="font-semibold text-sm">Inner Glyph</span>
           </NavLink>
-          <span className="text-xs mono text-muted-foreground">{location.pathname}</span>
+          <NavLink
+            to="/app/feed"
+            className="text-xs text-primary"
+            aria-label="Лента"
+          >
+            Лента
+          </NavLink>
         </div>
-        <div className="flex overflow-x-auto px-2 pb-2 gap-1 scrollbar-none">
-          {nav.map((item) => (
+      </header>
+
+      {/* Main */}
+      <main className="flex-1 min-w-0 pt-14 pb-24 md:pt-0 md:pb-0">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-10 animate-fade-in">
+          <Outlet />
+        </div>
+      </main>
+
+      {/* Mobile bottom tab bar (iOS) */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 glass pb-safe"
+        aria-label="Главная навигация"
+      >
+        <div className="grid grid-cols-5 px-1 pt-1.5">
+          {primary.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs whitespace-nowrap",
-                  "text-sidebar-foreground hover:bg-sidebar-accent",
-                  isActive && "bg-sidebar-accent text-primary",
+                  "flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg",
+                  "text-muted-foreground transition-colors active:bg-muted/40",
+                  isActive && "text-primary",
                 )
               }
             >
-              <item.icon className="size-3.5" />
-              {item.label}
+              <item.icon className="size-[22px]" strokeWidth={2} />
+              <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </NavLink>
           ))}
         </div>
-      </header>
-
-      <main className="flex-1 min-w-0 pt-28 md:pt-0">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10 animate-fade-in">
-          <Outlet />
-        </div>
-      </main>
+      </nav>
     </div>
   );
 };

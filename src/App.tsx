@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import Install from "./pages/Install";
 import { AppShell } from "./components/layout/AppShell";
 import GlyphHome from "./pages/app/GlyphHome";
 import Chat from "./pages/app/Chat";
@@ -32,6 +33,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/install" element={<Install />} />
             <Route
               path="/app"
               element={
