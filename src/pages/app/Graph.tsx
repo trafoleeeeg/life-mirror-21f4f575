@@ -102,6 +102,22 @@ const Graph = () => {
     });
   }, [user, reloadKey]);
 
+  // Фокус из URL (?focus=<id>) — выбираем сущность и подсвечиваем связи
+  useEffect(() => {
+    const focusId = searchParams.get("focus");
+    if (!focusId || !entities.length) return;
+    const ent = entities.find((e) => e.id === focusId);
+    if (ent) {
+      setSelected(ent);
+      requestAnimationFrame(() => {
+        document.getElementById("graph-connections")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const next = new URLSearchParams(searchParams);
+      next.delete("focus");
+      setSearchParams(next, { replace: true });
+    }
+  }, [entities, searchParams, setSearchParams]);
+
   const reload = () => setReloadKey((k) => k + 1);
 
   // Filter to current period
