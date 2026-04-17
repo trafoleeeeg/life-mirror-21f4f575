@@ -277,6 +277,9 @@ const Settings = () => {
             </Button>
           </div>
         </Card>
+
+        <Card className="ios-card p-5 space-y-3">
+          <h3 className="font-semibold">Аккаунт</h3>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={exportData} disabled={exporting} className="rounded-full">
