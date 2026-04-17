@@ -4,6 +4,32 @@ import type { DbEntity, PingRow, CheckinRow, DbEdge } from "@/types/lifeMap";
 
 export type PeriodDays = 7 | 30 | 60 | 90;
 
+// === Человеко-читаемые форматтеры ===
+export const formatDelta = (delta: number) => {
+  const abs = Math.abs(delta).toFixed(1);
+  if (delta >= 0.2) return `Поднимает на +${abs}`;
+  if (delta <= -0.2) return `Снижает на −${abs}`;
+  return "Почти не влияет";
+};
+export const formatDays = (n: number) => {
+  if (n === 0) return "ни разу";
+  if (n === 1) return "1 день";
+  if (n >= 2 && n <= 4) return `${n} дня`;
+  return `${n} дней`;
+};
+export const formatTrend = (trend: number) => {
+  const abs = Math.abs(trend).toFixed(1);
+  if (trend > 0.3) return `улучшается (+${abs})`;
+  if (trend < -0.3) return `ухудшается (−${abs})`;
+  return "стабильно";
+};
+// Низкая надёжность — мало дней с упоминанием
+export const reliability = (daysCount: number): "low" | "ok" | "good" => {
+  if (daysCount < 3) return "low";
+  if (daysCount < 6) return "ok";
+  return "good";
+};
+
 const dayKey = (d: string | Date) => (typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10));
 
 const buildHaystacks = (pings: PingRow[], checkins: CheckinRow[]) => ({
