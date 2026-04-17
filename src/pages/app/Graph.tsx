@@ -563,6 +563,8 @@ const Graph = () => {
 
           {/* === КАРТА СВЯЗЕЙ === */}
           <Card className="ios-card p-5" id="graph-connections">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-lg font-semibold tracking-tight">Карта связей</h2>
               <span className="text-xs text-muted-foreground">
                 {visibleEntities.length} узлов · {edges.length} связей
               </span>
