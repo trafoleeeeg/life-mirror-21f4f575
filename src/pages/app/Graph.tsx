@@ -161,6 +161,15 @@ const Graph = () => {
 
   const comparison = useMemo(() => compareImpactPeriods(impact, prevImpact), [impact, prevImpact]);
 
+  // Серии mood + маркеры упоминаний для каждой видимой сущности (для sparkline / timeline)
+  const seriesMap = useMemo(() => {
+    const m = new Map<string, EntitySeriesPoint[]>();
+    visibleEntities.forEach((e) => {
+      m.set(e.id, computeEntitySeries(e, periodPings, periodCheckins, period));
+    });
+    return m;
+  }, [visibleEntities, periodPings, periodCheckins, period]);
+
   // === Эмоциональный ландшафт ===
   const emotions = visibleEntities.filter((e) => e.type === "emotion");
   const days = useMemo(() => {
