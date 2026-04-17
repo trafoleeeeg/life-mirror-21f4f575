@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingDown } from "lucide-react";
+import { TodayWidget } from "@/components/dashboard/TodayWidget";
 
 const days = Array.from({ length: 30 }, (_, i) => {
   const d = new Date();
@@ -57,6 +58,8 @@ const Dashboard = () => {
         title="Дашборд осознанности"
         description="Не ради красивой картинки. Ради честной."
       />
+
+      <TodayWidget />
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <Card className="glass p-5 lg:col-span-2">
