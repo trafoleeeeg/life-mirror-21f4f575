@@ -468,8 +468,10 @@ const Feed = () => {
       <PageHeader
         eyebrow="мини-соцсеть · текст важнее картинок"
         title="Лента"
-        description="Дилеммы, мысли, рефлексии. Без подписок — только смыслы."
-      />
+        description="Дилеммы, мысли, рефлексии. Подпишись на людей, чьи идеи откликаются."
+      >
+        <UserSearch className="w-full sm:w-72" />
+      </PageHeader>
 
       {/* Composer */}
       <Card className="ios-card p-4 mb-5">
@@ -502,6 +504,30 @@ const Feed = () => {
           </Button>
         </div>
       </Card>
+
+      {/* Scope: все / подписки */}
+      {user && (
+        <div className="flex items-center gap-1 mb-3">
+          <button
+            onClick={() => setScope("all")}
+            className={cn(
+              "text-xs px-3 py-1 rounded-full transition-colors",
+              scope === "all" ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Все
+          </button>
+          <button
+            onClick={() => setScope("following")}
+            className={cn(
+              "text-xs px-3 py-1 rounded-full transition-colors",
+              scope === "following" ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Подписки {followingIds.size > 0 && <span className="ml-1 opacity-60">{followingIds.size}</span>}
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
