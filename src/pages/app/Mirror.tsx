@@ -20,6 +20,7 @@ import { ActivityImpact } from "@/components/dashboard/ActivityImpact";
 import { DailyBreakdown } from "@/components/dashboard/DailyBreakdown";
 import { CompactKpis } from "@/components/dashboard/CompactKpis";
 import { FocusInsights } from "@/components/mirror/FocusInsights";
+import { MorningForecast } from "@/components/dashboard/MorningForecast";
 import { SleepCorrelation } from "@/components/mirror/SleepCorrelation";
 import { SleepMiniCard } from "@/components/mirror/SleepMiniCard";
 import { PopupCard } from "@/components/mirror/PopupCard";
@@ -35,7 +36,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-ki
 
 const ORDER_KEY = "mirror.order.v2";
 const DEFAULT_ORDER = [
-  "balance", "focus", "analytics-header",
+  "forecast", "balance", "focus", "analytics-header",
   "activity", "trend", "sleep-corr", "history-row", "kpi",
 ] as const;
 type SectionId = typeof DEFAULT_ORDER[number];
@@ -110,6 +111,7 @@ const Mirror = () => {
   const days = preset === "7d" ? 7 : preset === "30d" ? 30 : preset === "90d" ? 90 : preset === "365d" ? 365 : 30;
 
   const sections: Record<SectionId, JSX.Element> = useMemo(() => ({
+    forecast: <MorningForecast key={`forecast-${refreshKey}`} />,
     balance: (
       <Card className="ios-card p-5">
         <div className="flex items-center justify-between mb-3">
