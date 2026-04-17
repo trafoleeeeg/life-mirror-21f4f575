@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   MessageCircle,
   Moon,
@@ -11,9 +12,16 @@ import {
   Settings,
   Bell,
   ShieldCheck,
+  Menu,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/lib/useIsAdmin";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Primary tabs shown on mobile bottom bar (4 max). */
 const primary = [
@@ -23,7 +31,7 @@ const primary = [
   { to: "/app/me", label: "Профиль", icon: User },
 ];
 
-/** Full nav shown in desktop sidebar. */
+/** Full nav shown in desktop sidebar and mobile drawer. */
 const sidebarNav = [
   { to: "/app", label: "Зеркало", icon: LineChart, end: true },
   { to: "/app/feed", label: "Лента", icon: Rss },
@@ -38,9 +46,36 @@ const sidebarNav = [
 
 export const AppShell = () => {
   const { isAdmin } = useIsAdmin();
+  const { user, signOut } = useAuth();
+  const location = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profile, setProfile] = useState<{ display_name: string | null; username: string | null; avatar_url: string | null } | null>(null);
+
   const nav = isAdmin
     ? [...sidebarNav, { to: "/app/admin", label: "Админ", icon: ShieldCheck }]
     : sidebarNav;
+
+  // Закрывать drawer при смене маршрута
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
+  // Подтянуть мини-профиль для шапки drawer'а
+  useEffect(() => {
+    if (!user) { setProfile(null); return; }
+    void supabase
+      .from("profiles")
+      .select("display_name, username, avatar_url")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data ?? null));
+  }, [user]);
+
+  const initials = (profile?.display_name || profile?.username || user?.email || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Desktop sidebar */}
@@ -89,21 +124,108 @@ export const AppShell = () => {
         </div>
       </aside>
 
-      {/* Mobile top bar (iOS-style large title is rendered per-page) */}
+      {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 inset-x-0 z-30 glass pt-safe">
-        <div className="flex items-center justify-between px-4 h-12">
-          <NavLink to="/app" className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-2 h-12">
+          <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10 rounded-full"
+                aria-label="Меню"
+              >
+                <Avatar className="size-7">
+                  <AvatarImage src={profile?.avatar_url ?? undefined} alt="" />
+                  <AvatarFallback className="text-[11px]">{initials}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="left"
+              className="w-[78%] max-w-[320px] p-0 flex flex-col bg-sidebar border-sidebar-border"
+            >
+              {/* Шапка drawer'а с профилем */}
+              <div className="px-5 pt-6 pb-4 border-b border-sidebar-border/60">
+                <NavLink to="/app/me" className="flex items-center gap-3">
+                  <Avatar className="size-12">
+                    <AvatarImage src={profile?.avatar_url ?? undefined} alt="" />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">
+                      {profile?.display_name || "Без имени"}
+                    </div>
+                    {profile?.username && (
+                      <div className="text-sm text-muted-foreground truncate">
+                        @{profile.username}
+                      </div>
+                    )}
+                  </div>
+                </NavLink>
+              </div>
+
+              {/* Полная навигация */}
+              <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+                {nav.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] transition-colors",
+                        "text-sidebar-foreground hover:bg-sidebar-accent",
+                        isActive && "bg-sidebar-accent text-primary font-medium",
+                      )
+                    }
+                  >
+                    <item.icon className="size-5" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+
+              {/* Низ: настройки + выход */}
+              <div className="px-3 py-3 border-t border-sidebar-border/60 space-y-0.5">
+                <NavLink
+                  to="/app/settings"
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3 py-3 rounded-xl text-[15px]",
+                      "text-sidebar-foreground hover:bg-sidebar-accent",
+                      isActive && "bg-sidebar-accent text-primary",
+                    )
+                  }
+                >
+                  <Settings className="size-5" />
+                  <span>Настройки</span>
+                </NavLink>
+                <button
+                  type="button"
+                  onClick={() => { void signOut(); }}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] text-sidebar-foreground hover:bg-sidebar-accent text-left"
+                >
+                  <LogOut className="size-5" />
+                  <span>Выйти</span>
+                </button>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <NavLink to="/app" className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
             <div className="size-6 rounded-md bg-primary flex items-center justify-center">
               <span className="text-primary-foreground text-[10px] font-bold">M</span>
             </div>
             <span className="font-semibold text-sm">Mirr</span>
           </NavLink>
+
           <NavLink
-            to="/app/feed"
-            className="text-xs text-primary"
-            aria-label="Лента"
+            to="/app/notifications"
+            className="size-10 rounded-full grid place-items-center text-foreground/80 hover:text-primary"
+            aria-label="Уведомления"
           >
-            Лента
+            <Bell className="size-5" />
           </NavLink>
         </div>
       </header>
