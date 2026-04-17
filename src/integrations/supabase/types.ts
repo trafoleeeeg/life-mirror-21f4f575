@@ -261,29 +261,41 @@ export type Database = {
       }
       graph_entities: {
         Row: {
+          category: string | null
           created_at: string
+          custom_label: string | null
+          hidden: boolean
           id: string
           label: string
           last_seen_at: string
           mentions: number
+          pinned: boolean
           type: string
           user_id: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
+          custom_label?: string | null
+          hidden?: boolean
           id?: string
           label: string
           last_seen_at?: string
           mentions?: number
+          pinned?: boolean
           type: string
           user_id: string
         }
         Update: {
+          category?: string | null
           created_at?: string
+          custom_label?: string | null
+          hidden?: boolean
           id?: string
           label?: string
           last_seen_at?: string
           mentions?: number
+          pinned?: boolean
           type?: string
           user_id?: string
         }
@@ -726,6 +738,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      merge_graph_entities: {
+        Args: { _drop: string; _keep: string }
+        Returns: undefined
       }
       try_unlock: { Args: { _code: string; _user: string }; Returns: undefined }
     }
