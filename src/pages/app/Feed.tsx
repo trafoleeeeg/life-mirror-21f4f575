@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Repeat2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { UserSearch } from "@/components/social/UserSearch";
 import { ThreadPost, ThreadPostData, ThreadComment } from "@/components/feed/ThreadPost";
+import { PostComposer } from "@/components/feed/PostComposer";
 
 const M = 60_000;
 const H = 60 * M;
