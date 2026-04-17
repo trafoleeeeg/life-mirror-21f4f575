@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Heart, MessageSquare, Filter, Flame, Loader2, Trash2, Send } from "lucide-react";
+import { Heart, MessageSquare, Filter, Flame, Loader2, Trash2, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -29,10 +29,12 @@ const CAT_TONE: Record<string, string> = {
 
 interface Post {
   id: string;
-  user_id: string;
+  user_id: string | null;
   category: string;
   content: string;
   created_at: string;
+  is_ai: boolean;
+  ai_author: string | null;
   author_name: string;
   likes: number;
   comments: number;
