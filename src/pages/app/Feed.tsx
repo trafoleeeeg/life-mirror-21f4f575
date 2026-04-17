@@ -247,7 +247,7 @@ const Feed = () => {
     }
     setDraft("");
     toast.success("Опубликовано");
-    load();
+    // Realtime сам подхватит новый пост
   };
 
   const toggleLike = async (p: Post) => {
@@ -305,7 +305,8 @@ const Feed = () => {
     if (error) return toast.error("Не удалось отправить");
     setCommentDraft("");
     await loadComments(postId);
-    setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, comments: x.comments + 1 } : x)));
+    // Счётчик обновится через realtime
+  };
   };
 
   return (
