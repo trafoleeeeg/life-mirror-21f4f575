@@ -1,6 +1,6 @@
 // Админ-панель: список пользователей с метриками + детальный drawer.
 // Доступна только пользователям с ролью admin.
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/lib/useIsAdmin";
@@ -252,15 +252,14 @@ interface PushEv {
   created_at: string;
 }
 
-const UserDetail = ({
-  user,
-  onClose,
-  onToggleDelete,
-}: {
-  user: AdminUser | null;
-  onClose: () => void;
-  onToggleDelete: (u: AdminUser, deleted: boolean) => void;
-}) => {
+const UserDetail = forwardRef<
+  HTMLDivElement,
+  {
+    user: AdminUser | null;
+    onClose: () => void;
+    onToggleDelete: (u: AdminUser, deleted: boolean) => void;
+  }
+>(({ user, onClose, onToggleDelete }, _ref) => {
   const [activity, setActivity] = useState<DayActivity[]>([]);
   const [subs, setSubs] = useState<PushSub[]>([]);
   const [authEvents, setAuthEvents] = useState<AuthEv[]>([]);
