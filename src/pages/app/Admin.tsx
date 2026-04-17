@@ -500,7 +500,8 @@ const UserDetail = forwardRef<
       </SheetContent>
     </Sheet>
   );
-};
+});
+UserDetail.displayName = "UserDetail";
 
 const Field = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
   <div className="min-w-0">
