@@ -185,20 +185,20 @@ export const ThreadPost = ({
             </p>
           )}
 
-          {/* Content */}
-          <p className="text-[15px] leading-snug whitespace-pre-wrap mt-0.5 break-words">
-            {displayContent}
-          </p>
-
-          {/* Image */}
-          {displayImage && (
-            <img
-              src={displayImage}
-              alt=""
-              className="mt-2 rounded-2xl max-h-96 w-full object-cover border border-border/40"
-              loading="lazy"
-            />
-          )}
+          {/* Content — кликабельный, открывает страницу треда */}
+          <Link to={`/app/post/${post.id}`} className="block">
+            <p className="text-[15px] leading-snug whitespace-pre-wrap mt-0.5 break-words">
+              {displayContent}
+            </p>
+            {displayImage && (
+              <img
+                src={displayImage}
+                alt=""
+                className="mt-2 rounded-2xl max-h-96 w-full object-cover border border-border/40"
+                loading="lazy"
+              />
+            )}
+          </Link>
 
           {/* Action row — Threads style: heart, comment, repost, share */}
           <div className="flex items-center gap-1 -ml-2 mt-2 text-muted-foreground">

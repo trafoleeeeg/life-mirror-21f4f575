@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Repeat2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { UserSearch } from "@/components/social/UserSearch";
 import { ThreadPost, ThreadPostData, ThreadComment } from "@/components/feed/ThreadPost";
+import { PostComposer } from "@/components/feed/PostComposer";
 
 const M = 60_000;
 const H = 60 * M;
@@ -37,8 +37,6 @@ const Feed = () => {
   const [myName, setMyName] = useState<string>("");
   const [posts, setPosts] = useState<ThreadPostData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState("");
-  const [posting, setPosting] = useState(false);
   const [scope, setScope] = useState<"all" | "following">("all");
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [openComments, setOpenComments] = useState<string | null>(null);
@@ -234,22 +232,6 @@ const Feed = () => {
     return filtered;
   }, [posts, scope, followingIds, user?.id]);
 
-  const publish = async () => {
-    if (!draft.trim() || !user) return;
-    setPosting(true);
-    const { error } = await supabase.from("posts").insert({
-      user_id: user.id,
-      content: draft.trim(),
-      category: "наблюдение",
-    });
-    setPosting(false);
-    if (error) {
-      toast.error("Не удалось опубликовать");
-      return;
-    }
-    setDraft("");
-    toast.success("Опубликовано");
-  };
 
   const submitRepost = async () => {
     if (!repostFor || !user) return;
@@ -365,43 +347,8 @@ const Feed = () => {
         </div>
       </div>
 
-      {/* Composer — Threads style */}
-      {user && (
-        <div className="px-4 py-3 border-b border-border/50 flex gap-3">
-          <Avatar className="size-10 shrink-0">
-            {myAvatar && <AvatarImage src={myAvatar} alt={myName} />}
-            <AvatarFallback className="text-xs">{initialsOf(myName || user.email)}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Что нового?"
-              rows={1}
-              className="resize-none border-0 px-0 py-1 text-[15px] focus-visible:ring-0 shadow-none min-h-[40px] bg-transparent"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void publish();
-                }
-              }}
-            />
-            <div className="flex justify-between items-center mt-1">
-              <span className="text-xs text-muted-foreground">
-                {draft.length > 0 && `${draft.length}`}
-              </span>
-              <Button
-                onClick={publish}
-                disabled={!draft.trim() || posting}
-                size="sm"
-                className="rounded-full"
-              >
-                {posting ? <Loader2 className="size-3.5 animate-spin" /> : "Запостить"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Composer — Threads style with image upload */}
+      <PostComposer myAvatar={myAvatar} myName={myName} />
 
       {/* Feed */}
       {loading ? (

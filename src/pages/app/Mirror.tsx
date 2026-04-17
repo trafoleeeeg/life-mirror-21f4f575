@@ -195,8 +195,20 @@ const Mirror = () => {
         </Button>
       </header>
 
-      {/* Quick check-in CTA */}
-      <Card className="ios-card p-4 animate-slide-up" style={{ animationDelay: "60ms", animationFillMode: "both" }}>
+      {/* Quick check-in CTA — вся карточка кликабельна */}
+      <Card
+        className="ios-card p-4 animate-slide-up cursor-pointer hover:bg-muted/30 active:bg-muted/50 transition-colors"
+        style={{ animationDelay: "60ms", animationFillMode: "both" }}
+        onClick={() => setQuickMode((m) => m === "single" ? "none" : "single")}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setQuickMode((m) => m === "single" ? "none" : "single");
+          }
+        }}
+      >
         <div className="flex items-center gap-3 flex-wrap">
           <div className="size-10 rounded-full bg-primary/15 text-primary grid place-items-center shrink-0">
             <Plus className="size-5" />
@@ -207,15 +219,7 @@ const Mirror = () => {
               {todayCount > 0 ? `Сегодня: ${todayCount} ${todayCount === 1 ? "запись" : "записей"}` : "Запиши настроение за минуту"}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={quickMode === "single" ? "default" : "outline"}
-              onClick={() => setQuickMode((m) => m === "single" ? "none" : "single")}
-              className="rounded-full gap-1.5"
-            >
-              <Plus className="size-3.5" /> Один
-            </Button>
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <Button
               size="sm"
               variant={quickMode === "bulk" ? "default" : "outline"}
