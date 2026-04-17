@@ -301,6 +301,30 @@ export type Database = {
         }
         Relationships: []
       }
+      learn_progress: {
+        Row: {
+          id: string
+          learned_at: string
+          section_slug: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          learned_at?: string
+          section_slug: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          learned_at?: string
+          section_slug?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mood_forecasts: {
         Row: {
           actual: number | null
@@ -784,6 +808,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_dossier: {
+        Row: {
+          created_at: string
+          goals: Json
+          id: string
+          last_auto_update_at: string | null
+          notes: string | null
+          patterns: Json
+          relationships: Json
+          resources: Json
+          summary: string | null
+          themes: Json
+          triggers: Json
+          updated_at: string
+          user_id: string
+          values_list: Json
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          goals?: Json
+          id?: string
+          last_auto_update_at?: string | null
+          notes?: string | null
+          patterns?: Json
+          relationships?: Json
+          resources?: Json
+          summary?: string | null
+          themes?: Json
+          triggers?: Json
+          updated_at?: string
+          user_id: string
+          values_list?: Json
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          goals?: Json
+          id?: string
+          last_auto_update_at?: string | null
+          notes?: string | null
+          patterns?: Json
+          relationships?: Json
+          resources?: Json
+          summary?: string | null
+          themes?: Json
+          triggers?: Json
+          updated_at?: string
+          user_id?: string
+          values_list?: Json
+          version?: number
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

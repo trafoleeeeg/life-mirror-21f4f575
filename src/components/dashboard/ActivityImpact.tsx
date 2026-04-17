@@ -87,15 +87,25 @@ export const ActivityImpact = ({ days = 30 }: Props) => {
   );
 };
 
+// Палитра по дельте: |Δ|<0.3 — нейтрально (жёлтый), <1 — мягкий, ≥1 — насыщенный.
+// Для positive-колонки используем зелёный (--stat-finance); для negative — красный (--destructive);
+// нейтраль — жёлтый (--stat-meaning).
+function colorVarFor(delta: number): string {
+  const a = Math.abs(delta);
+  if (a < 0.3) return "--stat-meaning";       // жёлтый — почти нейтрально
+  if (delta > 0) return "--stat-finance";      // зелёный — заряжает
+  return "--destructive";                      // красный — истощает
+}
+
 const Column = ({ rows, positive }: { rows: Row[]; positive: boolean }) => {
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
-  const accent = positive ? "--stat-body" : "--destructive";
+  const headColor = positive ? "--stat-finance" : "--destructive";
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
-        <Icon className="size-3.5" style={{ color: `hsl(var(${accent}))` }} />
+        <Icon className="size-3.5" style={{ color: `hsl(var(${headColor}))` }} />
         <p className="text-xs font-medium">
-          {positive ? "Поднимают" : "Опускают"}
+          {positive ? "Поднимают настроение" : "Опускают настроение"}
         </p>
       </div>
       {rows.length === 0 ? (
@@ -103,16 +113,19 @@ const Column = ({ rows, positive }: { rows: Row[]; positive: boolean }) => {
       ) : (
         <ul className="space-y-1.5">
           {rows.map((r) => {
-            const pct = Math.min(100, Math.abs(r.delta) / 3 * 100); // |delta| → 0..3 → 0..100%
+            const accent = colorVarFor(r.delta);
+            const pct = Math.min(100, Math.abs(r.delta) / 3 * 100);
+            const human = r.delta > 0 ? "Поднимает" : "Опускает";
+            const reliable = r.count >= 3;
             return (
-              <li key={r.label} className="flex items-center gap-2">
+              <li key={r.label} className="flex items-center gap-2" style={{ opacity: reliable ? 1 : 0.55 }}>
                 <div className="w-1 h-6 rounded-full shrink-0" style={{ background: `hsl(var(${accent}))` }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate leading-tight">{r.label}</p>
                   <div className="h-1 bg-muted rounded-full overflow-hidden mt-0.5">
                     <div
                       className="h-full rounded-full"
-                      style={{ width: `${pct}%`, background: `hsl(var(${accent}) / 0.7)` }}
+                      style={{ width: `${pct}%`, background: `hsl(var(${accent}) / 0.75)` }}
                     />
                   </div>
                 </div>
@@ -120,10 +133,11 @@ const Column = ({ rows, positive }: { rows: Row[]; positive: boolean }) => {
                   <p
                     className="mono text-sm font-semibold tabular-nums leading-none"
                     style={{ color: `hsl(var(${accent}))` }}
+                    title={`${human} в среднем на ${Math.abs(r.delta).toFixed(1)} балла относительно среднего`}
                   >
                     {r.delta > 0 ? "+" : ""}{r.delta.toFixed(1)}
                   </p>
-                  <p className="mono text-[10px] text-muted-foreground">×{r.count}</p>
+                  <p className="mono text-[10px] text-muted-foreground">{r.count} раз{r.count === 1 ? "" : r.count < 5 ? "а" : ""}</p>
                 </div>
               </li>
             );

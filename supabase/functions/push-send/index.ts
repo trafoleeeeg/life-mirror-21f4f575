@@ -28,7 +28,6 @@ interface Pref {
 
 function inWindow(pref: Pref): boolean {
   const now = new Date();
-  // Convert to user's tz
   const fmt = new Intl.DateTimeFormat("en-GB", {
     timeZone: pref.timezone || "UTC",
     hour: "2-digit",
@@ -41,11 +40,20 @@ function inWindow(pref: Pref): boolean {
   const wkShort = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
   const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
   const weekday = map[wkShort] ?? 1;
+  const prevWeekday = ((weekday + 5) % 7) + 1; // shift -1 in 1..7 space
 
-  if (!pref.weekdays.includes(weekday)) return false;
-  if (hour < pref.start_hour || hour >= pref.end_hour) return false;
+  // Поддержка ночного окна (например 17 → 03).
+  const overnight = pref.end_hour <= pref.start_hour;
+  let inHourly = false;
+  if (!overnight) {
+    if (!pref.weekdays.includes(weekday)) return false;
+    inHourly = hour >= pref.start_hour && hour < pref.end_hour;
+  } else {
+    if (hour >= pref.start_hour && pref.weekdays.includes(weekday)) inHourly = true;
+    else if (hour < pref.end_hour && pref.weekdays.includes(prevWeekday)) inHourly = true;
+  }
+  if (!inHourly) return false;
 
-  // throttle by interval
   if (pref.last_sent_at) {
     const elapsedMin = (now.getTime() - new Date(pref.last_sent_at).getTime()) / 60000;
     if (elapsedMin < pref.interval_minutes - 1) return false;
