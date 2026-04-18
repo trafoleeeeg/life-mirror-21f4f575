@@ -19,6 +19,8 @@ export const SortableSection = ({ id, children, disabled }: Props) => {
   return (
     <div
       ref={setNodeRef}
+      data-no-swipe
+      data-sortable-handle
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -30,6 +32,8 @@ export const SortableSection = ({ id, children, disabled }: Props) => {
         <button
           type="button"
           aria-label="Перетащить (удерживай для перемещения)"
+          data-no-swipe
+          data-sortable-handle
           {...attributes}
           {...listeners}
           className="absolute -left-2 top-3 size-7 rounded-full bg-card border border-border
