@@ -1,4 +1,4 @@
-name: Auto Tag on Version Bump
+name: Auto Tag & Build on Version Bump
 
 on:
   push:
@@ -12,6 +12,9 @@ permissions:
 jobs:
   tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      created: ${{ steps.check.outputs.created }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,27 +24,31 @@ jobs:
         id: version
         run: |
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          TAG="v$VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Detected version: $VERSION"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION ($TAG)"
 
-      - name: Check if tag already exists
+      - name: Check / create tag
         id: check
         run: |
-          TAG="v${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists, skipping"
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG already exists, skipping creation"
+            echo "created=false" >> $GITHUB_OUTPUT
           else
-            echo "Tag $TAG does not exist, will create"
-            echo "exists=false" >> $GITHUB_OUTPUT
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag: $TAG"
+            echo "created=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create and push tag
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          TAG="v${{ steps.version.outputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
+  build:
+    needs: tag
+    if: needs.tag.outputs.created == 'true'
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit
