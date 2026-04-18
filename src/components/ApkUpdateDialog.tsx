@@ -52,7 +52,9 @@ export const ApkUpdateDialog = ({ open, onOpenChange, update }: Props) => {
       });
       setFilePath(uri);
       setPhase("ready");
-      // Сразу запустим установщик — пользователь уже кликнул "Установить"
+      // Сразу запустим установщик — пользователь уже кликнул "Установить".
+      // handleInstall сам вернёт фазу в "ready" после старта системного диалога,
+      // чтобы UI не висел в "installing", если пользователь отменит установку.
       await handleInstall(uri);
     } catch (e) {
       console.error("[ApkUpdateDialog] download failed", e);
@@ -68,7 +70,10 @@ export const ApkUpdateDialog = ({ open, onOpenChange, update }: Props) => {
     setPhase("installing");
     try {
       await openApk(path);
-      // Окно установщика откроется поверх — оставляем диалог в состоянии "installing"
+      // openApk возвращается либо при успехе, либо по таймауту 2.5с (Android увёл фокус).
+      // В любом случае возвращаем UI в "ready" — пользователь сможет нажать ещё раз,
+      // если случайно закрыл системный диалог установки.
+      setPhase("ready");
     } catch (e) {
       console.error("[ApkUpdateDialog] open failed", e);
       setError(e instanceof Error ? e.message : String(e));

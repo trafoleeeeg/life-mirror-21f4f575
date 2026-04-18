@@ -33,11 +33,20 @@ export async function downloadApk(
   }
 }
 
-/** Открыть скачанный APK — Android покажет нативный диалог установки. */
+/**
+ * Открыть скачанный APK — Android покажет нативный диалог установки.
+ * ВАЖНО: на части устройств промис от FileOpener не резолвится, потому что
+ * Android уводит фокус на системный установщик. Поэтому делаем гонку с таймаутом:
+ * если за 2.5с не упало — считаем, что установщик стартовал успешно.
+ */
 export async function openApk(filePath: string): Promise<void> {
-  await FileOpener.open({
+  const open = FileOpener.open({
     filePath,
     contentType: "application/vnd.android.package-archive",
     openWithDefault: true,
   });
+  await Promise.race([
+    open,
+    new Promise<void>((resolve) => setTimeout(resolve, 2500)),
+  ]);
 }
