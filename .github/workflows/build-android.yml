@@ -22,6 +22,29 @@ jobs:
       - run: npx cap add android
       - run: npx cap sync android
 
+      - name: Register mirr:// deep-link in AndroidManifest
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("android/app/src/main/AndroidManifest.xml")
+          x = p.read_text()
+          if "mirr" in x:
+            print("already patched"); raise SystemExit(0)
+          intent = '''
+                <intent-filter android:autoVerify="false">
+                    <action android:name="android.intent.action.VIEW" />
+                    <category android:name="android.intent.category.DEFAULT" />
+                    <category android:name="android.intent.category.BROWSABLE" />
+                    <data android:scheme="mirr" android:host="callback" />
+                </intent-filter>
+          '''
+          x2 = re.sub(r"(</activity>)", intent + r"\n            \1", x, count=1)
+          p.write_text(x2)
+          print("patched")
+          PY
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Generate app icons
         run: |
           mkdir -p assets
