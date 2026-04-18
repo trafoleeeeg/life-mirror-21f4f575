@@ -421,7 +421,7 @@ const Chat = () => {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-8rem)] md:h-[calc(100vh-5rem)]">
+    <div className="flex flex-col h-[calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100vh-5rem)]">
       <PageHeader
         eyebrow="ai · с памятью"
         title="Психолог"

@@ -315,7 +315,7 @@ const Feed = () => {
   };
 
   return (
-    <div className="-mx-4 md:-mx-8 -my-4 md:-my-10 max-w-[640px] mx-auto md:mx-auto">
+    <div className="-mx-4 md:-mx-8 md:-my-10 max-w-[640px] md:mx-auto">
       {/* Sticky top: tabs + search */}
       <div
         data-no-swipe
