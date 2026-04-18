@@ -72,9 +72,13 @@ const Mirror = () => {
     useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
   );
   const [activeId, setActiveId] = useState<SectionId | null>(null);
-  const onDragStart = (e: DragStartEvent) => setActiveId(e.active.id as SectionId);
+  const onDragStart = (e: DragStartEvent) => {
+    setActiveId(e.active.id as SectionId);
+    document.body.classList.add("dnd-dragging");
+  };
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
+    document.body.classList.remove("dnd-dragging");
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     setOrder((prev) => {
@@ -83,6 +87,10 @@ const Mirror = () => {
       if (oldIdx < 0 || newIdx < 0) return prev;
       return arrayMove(prev, oldIdx, newIdx);
     });
+  };
+  const onDragCancel = () => {
+    setActiveId(null);
+    document.body.classList.remove("dnd-dragging");
   };
 
   useEffect(() => {
