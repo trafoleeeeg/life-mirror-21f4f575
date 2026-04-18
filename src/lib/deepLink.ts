@@ -1,6 +1,7 @@
-// Подписка на deep-link mirr://callback?code=... в Tauri.
-// На вебе — no-op.
+// Подписка на deep-link mirr://callback?code=... в Tauri (десктоп) и Capacitor (Android/iOS).
+// На обычном вебе — no-op.
 import { isTauri } from "@/lib/updater";
+import { isCapacitorNative } from "@/lib/platform";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -47,12 +48,14 @@ function parseAndHandle(url: string) {
   try {
     const u = new URL(url);
     if (u.protocol !== "mirr:") return;
-    if (u.host !== "callback" && u.pathname !== "/callback") {
-      // mirr://callback?code=xxx → host=callback
-      // на всякий случай поддержим оба
-    }
     const code = u.searchParams.get("code");
     if (code) {
+      // Закрываем браузер на Capacitor (если открыт in-app)
+      if (isCapacitorNative()) {
+        import("@capacitor/browser").then(({ Browser }) => {
+          Browser.close().catch(() => {});
+        });
+      }
       exchangeCode(code);
     }
   } catch (e) {
@@ -60,12 +63,9 @@ function parseAndHandle(url: string) {
   }
 }
 
-export async function initDeepLink() {
-  if (initialized || !isTauri()) return;
-  initialized = true;
+async function initTauriDeepLink() {
   try {
     const { onOpenUrl, getCurrent } = await import("@tauri-apps/plugin-deep-link");
-    // Если приложение запущено по deep-link — заберём начальный URL
     try {
       const initial = await getCurrent();
       if (initial && initial.length > 0) {
@@ -74,26 +74,65 @@ export async function initDeepLink() {
     } catch {
       // ignore
     }
-    // Слушаем последующие deep-link
     await onOpenUrl((urls) => {
       for (const u of urls) parseAndHandle(u);
     });
   } catch (e) {
-    console.error("[deep-link] init error", e);
+    console.error("[deep-link] tauri init error", e);
+  }
+}
+
+async function initCapacitorDeepLink() {
+  try {
+    const { App } = await import("@capacitor/app");
+    // Если приложение открыли уже по deep-link
+    try {
+      const launch = await App.getLaunchUrl();
+      if (launch?.url) parseAndHandle(launch.url);
+    } catch {
+      // ignore
+    }
+    App.addListener("appUrlOpen", (event) => {
+      if (event?.url) parseAndHandle(event.url);
+    });
+  } catch (e) {
+    console.error("[deep-link] capacitor init error", e);
+  }
+}
+
+export async function initDeepLink() {
+  if (initialized) return;
+  if (isTauri()) {
+    initialized = true;
+    await initTauriDeepLink();
+  } else if (isCapacitorNative()) {
+    initialized = true;
+    await initCapacitorDeepLink();
   }
 }
 
 export async function openDesktopAuthInBrowser() {
-  if (!isTauri()) {
-    // на вебе просто переходим
-    window.location.href = `${WEB_ORIGIN}/desktop-auth`;
+  const url = `${WEB_ORIGIN}/desktop-auth`;
+  if (isTauri()) {
+    try {
+      const { open } = await import("@tauri-apps/plugin-shell");
+      await open(url);
+    } catch (e) {
+      console.error("[deep-link] tauri open browser error", e);
+      toast.error("Не удалось открыть браузер");
+    }
     return;
   }
-  try {
-    const { open } = await import("@tauri-apps/plugin-shell");
-    await open(`${WEB_ORIGIN}/desktop-auth`);
-  } catch (e) {
-    console.error("[deep-link] open browser error", e);
-    toast.error("Не удалось открыть браузер");
+  if (isCapacitorNative()) {
+    try {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url, presentationStyle: "popover" });
+    } catch (e) {
+      console.error("[deep-link] capacitor open browser error", e);
+      toast.error("Не удалось открыть браузер");
+    }
+    return;
   }
+  // веб
+  window.location.href = url;
 }
