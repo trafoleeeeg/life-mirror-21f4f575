@@ -237,7 +237,7 @@ export const AppShell = () => {
         currentPath={location.pathname}
         onOpenDrawer={() => setDrawerOpen(true)}
       >
-        <main className="flex-1 min-w-0 pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:pt-0 md:pb-0 overflow-x-hidden">
+        <main className="flex-1 min-w-0 pt-[calc(env(safe-area-inset-top)_+_3rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pt-0 md:pb-0 overflow-x-hidden">
           <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-10 animate-fade-in">
             <Outlet />
           </div>
