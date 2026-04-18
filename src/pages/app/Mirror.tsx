@@ -29,7 +29,7 @@ import { seedDemoData } from "@/lib/demoData";
 import type { DateRange } from "react-day-picker";
 
 import {
-  DndContext, PointerSensor, useSensor, useSensors,
+  DndContext, PointerSensor, TouchSensor, MouseSensor, useSensor, useSensors,
   closestCenter, DragOverlay, type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -65,7 +65,12 @@ const Mirror = () => {
   });
   useEffect(() => { localStorage.setItem(ORDER_KEY, JSON.stringify(order)); }, [order]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // На мобиле: long-press 350мс активирует drag (не конфликтует со скроллом).
+  // На десктопе: обычный mouse drag по 6px.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
+  );
   const [activeId, setActiveId] = useState<SectionId | null>(null);
   const onDragStart = (e: DragStartEvent) => setActiveId(e.active.id as SectionId);
   const onDragEnd = (e: DragEndEvent) => {
@@ -239,36 +244,38 @@ const Mirror = () => {
         <BulkCheckin onSaved={() => { setRefreshKey((k) => k + 1); setQuickMode("none"); }} />
       )}
 
-      {/* DnD */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveId(null)}
-      >
-        <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
-          <div className="flex flex-col gap-5">
-            {order.map((id, i) => (
-              <SortableSection key={id} id={id}>
-                <div
-                  className="animate-slide-up rounded-2xl"
-                  style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
-                >
-                  {sections[id]}
-                </div>
-              </SortableSection>
-            ))}
-          </div>
-        </SortableContext>
-        <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
-          {activeId ? (
-            <div className="rounded-2xl shadow-2xl ring-1 ring-primary/30 bg-background opacity-95 cursor-grabbing">
-              {sections[activeId]}
+      {/* DnD — на мобиле перетаскивание активируется long-press; помечаем зону data-no-swipe */}
+      <div data-no-swipe>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
+            <div className="flex flex-col gap-5">
+              {order.map((id, i) => (
+                <SortableSection key={id} id={id}>
+                  <div
+                    className="animate-slide-up rounded-2xl"
+                    style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
+                  >
+                    {sections[id]}
+                  </div>
+                </SortableSection>
+              ))}
             </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          </SortableContext>
+          <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+            {activeId ? (
+              <div className="rounded-2xl shadow-2xl ring-1 ring-primary/30 bg-background opacity-95 cursor-grabbing">
+                {sections[activeId]}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
     </div>
   );
 };
