@@ -253,38 +253,36 @@ const Mirror = () => {
         <BulkCheckin onSaved={() => { setRefreshKey((k) => k + 1); setQuickMode("none"); }} />
       )}
 
-      {/* DnD — на мобиле перетаскивание активируется long-press; помечаем зону data-no-swipe */}
-      <div data-no-swipe>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          onDragCancel={onDragCancel}
-        >
-          <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-5">
-              {order.map((id, i) => (
-                <SortableSection key={id} id={id}>
-                  <div
-                    className="animate-slide-up rounded-2xl"
-                    style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
-                  >
-                    {sections[id]}
-                  </div>
-                </SortableSection>
-              ))}
+      {/* DnD на мобиле — только через ручку слева. Свайпы между табами работают везде. */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={onDragCancel}
+      >
+        <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
+          <div className="flex flex-col gap-5">
+            {order.map((id, i) => (
+              <SortableSection key={id} id={id}>
+                <div
+                  className="animate-slide-up rounded-2xl"
+                  style={{ animationDelay: `${120 + i * 40}ms`, animationFillMode: "both" }}
+                >
+                  {sections[id]}
+                </div>
+              </SortableSection>
+            ))}
+          </div>
+        </SortableContext>
+        <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+          {activeId ? (
+            <div className="rounded-2xl shadow-2xl ring-1 ring-primary/30 bg-background opacity-95 cursor-grabbing">
+              {sections[activeId]}
             </div>
-          </SortableContext>
-          <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
-            {activeId ? (
-              <div className="rounded-2xl shadow-2xl ring-1 ring-primary/30 bg-background opacity-95 cursor-grabbing">
-                {sections[activeId]}
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 };
