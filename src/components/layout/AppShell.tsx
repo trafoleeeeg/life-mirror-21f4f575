@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { SwipeNavigator } from "./SwipeNavigator";
+import { haptic } from "@/lib/haptics";
 
 /** Primary tabs shown on mobile bottom bar (4 max). */
 const primary = [
@@ -255,10 +256,11 @@ export const AppShell = () => {
               key={item.to}
               to={item.to}
               end={item.end}
+              onPointerDown={(e) => { if (e.pointerType === "touch") void haptic("selection"); }}
               className={({ isActive }) =>
                 cn(
                   "flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg",
-                  "text-muted-foreground transition-colors active:bg-muted/40",
+                  "text-muted-foreground transition-colors active:bg-muted/40 active:scale-[0.96]",
                   isActive && "text-primary",
                 )
               }
