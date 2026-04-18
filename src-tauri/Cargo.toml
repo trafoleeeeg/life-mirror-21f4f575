@@ -1,6 +1,6 @@
 [package]
 name = "mirr"
-version = "0.1.0"
+version = "0.1.4"
 description = "Mirr — цифровое зеркало личности"
 authors = ["Mirr"]
 edition = "2021"
