@@ -19,7 +19,8 @@ export const SortableSection = ({ id, children, disabled }: Props) => {
   return (
     <div
       ref={setNodeRef}
-      data-no-swipe
+      // нет data-no-swipe здесь — иначе горизонтальные свайпы между табами не работают
+      // на главной. DnD активируется только через ручку (она ниже имеет data-no-swipe).
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
