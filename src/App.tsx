@@ -30,6 +30,7 @@ import UserProfile from "./pages/app/UserProfile";
 import Me from "./pages/app/Me";
 import PostThread from "./pages/app/PostThread";
 import NotFound from "./pages/NotFound.tsx";
+import { UpdateBanner } from "./components/UpdateBanner";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <UpdateBanner />
       <Router>
         <AuthProvider>
           <Routes>
