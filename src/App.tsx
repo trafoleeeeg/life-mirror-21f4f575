@@ -38,7 +38,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <Router>
         <AuthProvider>
           <Routes>
             {/* Корень сразу ведёт в апку. Если не залогинен — ProtectedRoute редиректит в /auth. */}
