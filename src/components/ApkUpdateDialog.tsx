@@ -70,13 +70,18 @@ export const ApkUpdateDialog = ({ open, onOpenChange, update }: Props) => {
     setPhase("installing");
     try {
       await openApk(path);
-      // openApk возвращается либо при успехе, либо по таймауту 2.5с (Android увёл фокус).
-      // В любом случае возвращаем UI в "ready" — пользователь сможет нажать ещё раз,
-      // если случайно закрыл системный диалог установки.
+      // Системный установщик показан — оставляем "ready" чтобы можно было
+      // нажать ещё раз если пользователь случайно отменил.
       setPhase("ready");
     } catch (e) {
       console.error("[ApkUpdateDialog] open failed", e);
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      // Типовая причина: нет разрешения "Установка из неизвестных источников"
+      setError(
+        msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("denied")
+          ? "Разреши установку из неизвестных источников в настройках Android и попробуй снова."
+          : `Не удалось открыть установщик: ${msg}`,
+      );
       setPhase("error");
     }
   };
