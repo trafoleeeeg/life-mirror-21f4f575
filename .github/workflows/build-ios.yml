@@ -1,0 +1,31 @@
+name: Build iOS
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap add ios || true
+      - run: npx cap sync ios
+
+      - name: Build unsigned .app (no Apple Developer account required)
+        working-directory: ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App \
+            -configuration Release -sdk iphoneos \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mirr-ios-app
+          path: ios/App/build/Build/Products/Release-iphoneos/*.app
