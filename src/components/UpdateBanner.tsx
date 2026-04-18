@@ -56,7 +56,7 @@ export const UpdateBanner = () => {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-sm">Доступно обновление</h3>
+            <h3 className="font-semibold text-sm">✨ Доступно обновление</h3>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Версия {update.version} готова к установке
