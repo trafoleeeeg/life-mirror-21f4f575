@@ -29,11 +29,17 @@ export const PopupCard = ({
         tabIndex={0}
         onClick={() => setOpen(true)}
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}
-        className="ios-card p-4 cursor-pointer transition-all hover:scale-[1.01] hover:border-primary/40 active:scale-[0.99] animate-fade-in"
+        className="ios-card group relative p-4 cursor-pointer transition-all hover:scale-[1.01] hover:border-primary/60 hover:shadow-lg active:scale-[0.99] animate-fade-in border-dashed"
         style={{
           background: `linear-gradient(135deg, hsl(var(${accentToken}) / 0.08), hsl(var(--card)))`,
         }}
       >
+        {/* Угловой маркер «можно открыть» */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-0 right-0 size-6 rounded-bl-xl rounded-tr-[inherit] opacity-70 group-hover:opacity-100 transition-opacity"
+          style={{ background: `hsl(var(${accentToken}) / 0.18)` }}
+        />
         <div className="flex items-center gap-3">
           {icon && (
             <div
@@ -44,12 +50,23 @@ export const PopupCard = ({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">{title}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-semibold text-sm truncate">{title}</p>
+              <span
+                className="mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-full shrink-0"
+                style={{
+                  background: `hsl(var(${accentToken}) / 0.15)`,
+                  color: `hsl(var(${accentToken}))`,
+                }}
+              >
+                tap
+              </span>
+            </div>
             {subtitle && (
               <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
             )}
           </div>
-          <Maximize2 className="size-4 text-muted-foreground" />
+          <Maximize2 className="size-4 text-muted-foreground group-hover:text-primary transition-colors relative z-10" />
         </div>
         {preview && <div className="mt-3">{preview}</div>}
       </Card>
