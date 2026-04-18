@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { SwipeNavigator } from "./SwipeNavigator";
 
 /** Primary tabs shown on mobile bottom bar (4 max). */
 const primary = [
@@ -125,7 +126,7 @@ export const AppShell = () => {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 inset-x-0 z-30 glass pt-safe">
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 glass pt-safe no-select">
         <div className="flex items-center justify-between px-2 h-12">
           <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
             <SheetTrigger asChild>
@@ -143,7 +144,7 @@ export const AppShell = () => {
             </SheetTrigger>
             <SheetContent
               side="left"
-              className="w-[78%] max-w-[320px] p-0 flex flex-col bg-sidebar border-sidebar-border"
+              className="w-[78%] max-w-[320px] p-0 flex flex-col bg-sidebar border-sidebar-border pt-safe pb-safe"
             >
               {/* Шапка drawer'а с профилем */}
               <div className="px-5 pt-6 pb-4 border-b border-sidebar-border/60">
@@ -231,15 +232,21 @@ export const AppShell = () => {
       </header>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 pt-14 pb-24 md:pt-0 md:pb-0 overflow-x-hidden">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-10 animate-fade-in">
-          <Outlet />
-        </div>
-      </main>
+      <SwipeNavigator
+        tabs={primary}
+        currentPath={location.pathname}
+        onOpenDrawer={() => setDrawerOpen(true)}
+      >
+        <main className="flex-1 min-w-0 pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:pt-0 md:pb-0 overflow-x-hidden">
+          <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-10 animate-fade-in">
+            <Outlet />
+          </div>
+        </main>
+      </SwipeNavigator>
 
       {/* Mobile bottom tab bar (iOS) */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-30 glass pb-safe"
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 glass pb-safe no-select"
         aria-label="Главная навигация"
       >
         <div className="grid grid-cols-4 px-1 pt-1.5">
