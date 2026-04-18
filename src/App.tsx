@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Install from "./pages/Install";
 import { AppShell } from "./components/layout/AppShell";
 
@@ -46,6 +47,7 @@ const App = () => (
             {/* Корень сразу ведёт в апку. Если не залогинен — ProtectedRoute редиректит в /auth. */}
             <Route path="/" element={<Navigate to="/app" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/install" element={<Install />} />
             <Route
               path="/app"
