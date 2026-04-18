@@ -12,7 +12,23 @@ export interface UpdateInfo {
 }
 
 const REPO = (import.meta.env.VITE_GITHUB_REPO as string | undefined) || "trafoleeeeg/life-mirror-21f4f575"; // "owner/repo"
-const CURRENT = (import.meta.env.VITE_APP_VERSION as string | undefined) || "0.0.0";
+const ENV_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) || "0.0.0";
+
+// На Android берём реальную версию из нативного приложения,
+// иначе env "0.0.0" и любой релиз кажется новее.
+async function getCurrentVersion(): Promise<string> {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (Capacitor.isNativePlatform()) {
+      const { App } = await import("@capacitor/app");
+      const info = await App.getInfo();
+      return info.version || ENV_VERSION;
+    }
+  } catch {
+    // ignore — fall back to env
+  }
+  return ENV_VERSION;
+}
 
 // Семвер-сравнение: "1.2.10" > "1.2.9"
 function cmpVer(a: string, b: string): number {
@@ -27,9 +43,10 @@ function cmpVer(a: string, b: string): number {
 }
 
 export async function checkForApkUpdate(): Promise<UpdateInfo> {
+  const current = await getCurrentVersion();
   const empty: UpdateInfo = {
     available: false,
-    currentVersion: CURRENT,
+    currentVersion: current,
     latestVersion: null,
     apkUrl: null,
     releaseUrl: null,
@@ -54,10 +71,11 @@ export async function checkForApkUpdate(): Promise<UpdateInfo> {
     };
     const apk = j.assets?.find((a) => a.name.toLowerCase().endsWith(".apk"));
     const latest = j.tag_name;
-    const isNewer = cmpVer(latest, CURRENT) > 0;
+    const isNewer = cmpVer(latest, current) > 0;
+    console.log("[updateChecker]", { current, latest, isNewer, apk: apk?.browser_download_url });
     return {
       available: isNewer && !!apk,
-      currentVersion: CURRENT,
+      currentVersion: current,
       latestVersion: latest,
       apkUrl: apk?.browser_download_url ?? null,
       releaseUrl: j.html_url,
@@ -69,4 +87,4 @@ export async function checkForApkUpdate(): Promise<UpdateInfo> {
   }
 }
 
-export const APP_VERSION = CURRENT;
+export const APP_VERSION = ENV_VERSION;

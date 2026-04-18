@@ -1,22 +1,10 @@
-// Скачивание APK с прогрессом во временное хранилище и запуск установки
-// через нативный FileOpener (Android покажет системный установщик).
-import { Filesystem, Directory } from "@capacitor/filesystem";
+// Скачивание APK с прогрессом во временное хранилище и запуск установки.
+// Используем нативный Filesystem.downloadFile — это обходит CORS WebView
+// и работает с GitHub Release редиректами на objects.githubusercontent.com.
+import { Filesystem, Directory, type ProgressStatus } from "@capacitor/filesystem";
 import { FileOpener } from "@capacitor-community/file-opener";
 
 export type DownloadProgress = (downloaded: number, total: number | null) => void;
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode.apply(
-      null,
-      Array.from(bytes.subarray(i, i + chunk)) as unknown as number[],
-    );
-  }
-  return btoa(binary);
-}
 
 /** Скачивает APK по URL с прогрессом и сохраняет в Cache directory. */
 export async function downloadApk(
@@ -24,39 +12,25 @@ export async function downloadApk(
   fileName: string,
   onProgress?: DownloadProgress,
 ): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-
-  const totalHeader = res.headers.get("Content-Length");
-  const total = totalHeader ? parseInt(totalHeader, 10) : null;
-
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      chunks.push(value);
-      received += value.length;
-      onProgress?.(received, total);
-    }
-  }
-
-  const blob = new Blob(chunks as BlobPart[]);
-  const buffer = await blob.arrayBuffer();
-  const base64 = arrayBufferToBase64(buffer);
-
-  // Сохраняем в Cache (не требует разрешений). Перезаписываем, если есть.
-  const written = await Filesystem.writeFile({
-    path: fileName,
-    data: base64,
-    directory: Directory.Cache,
-    recursive: true,
+  // Подписка на прогресс ДО старта загрузки
+  const handle = await Filesystem.addListener("progress", (status: ProgressStatus) => {
+    if (status.url !== url) return;
+    onProgress?.(status.bytes, status.contentLength ?? null);
   });
 
-  return written.uri; // file://...
+  try {
+    const result = await Filesystem.downloadFile({
+      url,
+      path: fileName,
+      directory: Directory.Cache,
+      recursive: true,
+      progress: true,
+    });
+    if (!result.path) throw new Error("Не удалось сохранить файл");
+    return result.path; // абсолютный file:// путь
+  } finally {
+    await handle.remove();
+  }
 }
 
 /** Открыть скачанный APK — Android покажет нативный диалог установки. */
