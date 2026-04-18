@@ -13,6 +13,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate tag
+        shell: bash
+        run: |
+          REF="${GITHUB_REF_NAME}"
+          if [[ ! "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Workflow must be triggered by a semver tag like v0.1.4 (got '$REF'). Push a tag instead of running manually from a branch."
+            exit 1
+          fi
+          echo "Building version: ${REF#v}"
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - uses: dtolnay/rust-toolchain@stable
