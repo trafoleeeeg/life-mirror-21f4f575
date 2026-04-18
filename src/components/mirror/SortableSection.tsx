@@ -20,7 +20,6 @@ export const SortableSection = ({ id, children, disabled }: Props) => {
     <div
       ref={setNodeRef}
       data-no-swipe
-      data-sortable-handle
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -31,17 +30,17 @@ export const SortableSection = ({ id, children, disabled }: Props) => {
       {!disabled && (
         <button
           type="button"
-          aria-label="Перетащить (удерживай для перемещения)"
+          aria-label="Перетащить блок"
           data-no-swipe
           data-sortable-handle
           {...attributes}
           {...listeners}
-          className="absolute -left-2 top-3 size-7 rounded-full bg-card border border-border
-                     grid place-items-center md:opacity-0 md:group-hover:opacity-100 opacity-70
-                     transition-opacity cursor-grab active:cursor-grabbing z-20 shadow-sm
+          className="absolute -left-1 top-2 size-9 md:size-7 rounded-full bg-card border border-border
+                     grid place-items-center md:opacity-0 md:group-hover:opacity-100
+                     transition-opacity cursor-grab active:cursor-grabbing z-20 shadow-md
                      touch-none no-select"
         >
-          <GripVertical className="size-3.5 text-muted-foreground" />
+          <GripVertical className="size-4 md:size-3.5 text-muted-foreground" />
         </button>
       )}
       {children}

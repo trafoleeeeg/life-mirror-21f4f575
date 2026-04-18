@@ -65,11 +65,12 @@ const Mirror = () => {
   });
   useEffect(() => { localStorage.setItem(ORDER_KEY, JSON.stringify(order)); }, [order]);
 
-  // На мобиле: long-press 350мс активирует drag (не конфликтует со скроллом).
-  // На десктопе: обычный mouse drag по 6px.
+  // DnD активируется ТОЛЬКО через ручку (GripVertical слева). На мобиле long-press
+  // по карточке убран — он конфликтовал со скроллом. Drag handle есть и на десктопе,
+  // и на мобиле — поведение единое.
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } }),
   );
   const [activeId, setActiveId] = useState<SectionId | null>(null);
   const onDragStart = (e: DragStartEvent) => {
