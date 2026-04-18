@@ -15,6 +15,7 @@ import {
 } from "@/lib/updater";
 import { isCapacitorNative } from "@/lib/platform";
 import { checkForApkUpdate, type UpdateInfo } from "@/lib/updateChecker";
+import { ApkUpdateDialog } from "@/components/ApkUpdateDialog";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // раз в час
 const FIRST_CHECK_DELAY_MS = 4000;
@@ -28,7 +29,7 @@ export const UpdateBanner = () => {
 
   // ---------- Android (Capacitor) ----------
   const [apkUpdate, setApkUpdate] = useState<UpdateInfo | null>(null);
-  const [apkOpening, setApkOpening] = useState(false);
+  const [apkDialogOpen, setApkDialogOpen] = useState(false);
 
   // Tauri updater
   useEffect(() => {
@@ -70,63 +71,46 @@ export const UpdateBanner = () => {
     }
   };
 
-  const handleApkInstall = async () => {
-    if (!apkUpdate?.apkUrl) return;
-    setApkOpening(true);
-    try {
-      // Открываем системный браузер — Android сам скачает .apk и предложит установить
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url: apkUpdate.apkUrl });
-    } catch (e) {
-      // fallback — обычный window.open
-      window.open(apkUpdate.apkUrl, "_blank");
-      console.warn("[UpdateBanner] Browser.open failed, fallback used:", e);
-    } finally {
-      setApkOpening(false);
-    }
-  };
-
   // ---------- РЕНДЕР: Android-баннер имеет приоритет ----------
   if (isCapacitorNative() && apkUpdate?.available && !dismissed) {
     return (
-      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] md:bottom-4 right-4 left-4 md:left-auto z-50 md:w-80 rounded-2xl border border-border bg-card p-4 shadow-lg animate-slide-up">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <Download className="h-4 w-4 text-primary" />
-              <h3 className="font-semibold text-sm">Доступно обновление</h3>
+      <>
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] md:bottom-4 right-4 left-4 md:left-auto z-50 md:w-80 rounded-2xl border border-border bg-card p-4 shadow-lg animate-slide-up">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <Download className="h-4 w-4 text-primary" />
+                <h3 className="font-semibold text-sm">Доступно обновление</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Новая версия {apkUpdate.latestVersion}
+                {apkUpdate.currentVersion !== "0.0.0" && (
+                  <span className="opacity-70"> · текущая {apkUpdate.currentVersion}</span>
+                )}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Новая версия {apkUpdate.latestVersion}
-              {apkUpdate.currentVersion !== "0.0.0" && (
-                <span className="opacity-70"> · текущая {apkUpdate.currentVersion}</span>
-              )}
-            </p>
+            <button
+              onClick={() => setDismissed(true)}
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="Закрыть"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-muted-foreground hover:text-foreground shrink-0"
-            aria-label="Закрыть"
+          <Button
+            onClick={() => setApkDialogOpen(true)}
+            size="sm"
+            className="mt-3 w-full rounded-full"
           >
-            <X className="h-4 w-4" />
-          </button>
+            Обновить
+          </Button>
         </div>
-        <Button
-          onClick={handleApkInstall}
-          disabled={apkOpening}
-          size="sm"
-          className="mt-3 w-full rounded-full"
-        >
-          {apkOpening ? (
-            <><RefreshCw className="h-3 w-3 mr-2 animate-spin" /> Открываем…</>
-          ) : (
-            "Скачать и установить"
-          )}
-        </Button>
-        <p className="text-[10px] text-muted-foreground mt-2 text-center">
-          Откроется браузер · разреши установку из неизвестных источников
-        </p>
-      </div>
+        <ApkUpdateDialog
+          open={apkDialogOpen}
+          onOpenChange={setApkDialogOpen}
+          update={apkUpdate}
+        />
+      </>
     );
   }
 
