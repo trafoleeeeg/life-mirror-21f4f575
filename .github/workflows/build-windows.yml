@@ -20,6 +20,9 @@ jobs:
       - name: Install Tauri CLI
         run: npm i -D @tauri-apps/cli@^2
 
+      - name: Generate icons from icon.png
+        run: npx tauri icon src-tauri/icons/icon.png
+
       - name: Build MSI + NSIS
         run: npx tauri build
 
