@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.build-dossier]
 verify_jwt = false
+
+[functions.desktop-auth-exchange]
+verify_jwt = false

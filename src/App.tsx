@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { HashRouter, BrowserRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
 
 // В Tauri/Electron (file://) нужен HashRouter, в вебе — BrowserRouter
 const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
@@ -8,8 +9,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { initDeepLink, setOnDesktopSignIn } from "@/lib/deepLink";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import DesktopAuth from "./pages/DesktopAuth";
 import Install from "./pages/Install";
 import { AppShell } from "./components/layout/AppShell";
 
@@ -35,6 +38,15 @@ import { UpdateBanner } from "./components/UpdateBanner";
 
 const queryClient = new QueryClient();
 
+const DeepLinkBridge = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    setOnDesktopSignIn(() => navigate("/app", { replace: true }));
+    initDeepLink();
+  }, [navigate]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -43,11 +55,13 @@ const App = () => (
       <UpdateBanner />
       <Router>
         <AuthProvider>
+          <DeepLinkBridge />
           <Routes>
             {/* Корень сразу ведёт в апку. Если не залогинен — ProtectedRoute редиректит в /auth. */}
             <Route path="/" element={<Navigate to="/app" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/desktop-auth" element={<DesktopAuth />} />
             <Route path="/install" element={<Install />} />
             <Route
               path="/app"

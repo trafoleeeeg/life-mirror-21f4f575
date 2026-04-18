@@ -202,6 +202,39 @@ export type Database = {
         }
         Relationships: []
       }
+      desktop_auth_codes: {
+        Row: {
+          access_token: string
+          code: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          code: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          code?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
@@ -1120,6 +1153,7 @@ export type Database = {
           sleep_sessions: number
         }[]
       }
+      cleanup_expired_desktop_codes: { Args: never; Returns: undefined }
       clear_demo_community: { Args: { _caller: string }; Returns: Json }
       compute_ping_streak: { Args: { _user: string }; Returns: number }
       has_role: {
