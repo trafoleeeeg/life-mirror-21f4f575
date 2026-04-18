@@ -44,7 +44,7 @@ export async function downloadApk(
     }
   }
 
-  const blob = new Blob(chunks);
+  const blob = new Blob(chunks as BlobPart[]);
   const buffer = await blob.arrayBuffer();
   const base64 = arrayBufferToBase64(buffer);
 
