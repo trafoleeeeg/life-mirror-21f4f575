@@ -168,14 +168,14 @@ const Notifications = () => {
   })();
 
   return (
-    <>
+    <div className="max-w-2xl mx-auto">
       <PageHeader
         eyebrow="живой трекинг"
         title="Уведомления"
         description="Гибкое окно, свой ритм. Без спама и стрессовых триггеров."
       />
 
-      <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="space-y-4">
         <Card className="ios-card p-5 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -404,7 +404,7 @@ const Notifications = () => {
           </Button>
         </Card>
       </div>
-    </>
+    </div>
   );
 };
 
