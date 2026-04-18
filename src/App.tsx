@@ -1,5 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { HashRouter, BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+
+// В Tauri/Electron (file://) нужен HashRouter, в вебе — BrowserRouter
+const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,7 +38,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <Router>
         <AuthProvider>
           <Routes>
             {/* Корень сразу ведёт в апку. Если не залогинен — ProtectedRoute редиректит в /auth. */}
@@ -76,7 +79,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
-      </BrowserRouter>
+      </Router>
     </TooltipProvider>
   </QueryClientProvider>
 );
