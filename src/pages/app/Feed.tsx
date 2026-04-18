@@ -317,7 +317,10 @@ const Feed = () => {
   return (
     <div className="-mx-4 md:-mx-8 -my-4 md:-my-10 max-w-[640px] mx-auto md:mx-auto">
       {/* Sticky top: tabs + search */}
-      <div className="sticky top-12 md:top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/50">
+      <div
+        data-no-swipe
+        className="sticky top-[calc(env(safe-area-inset-top)+3rem)] md:top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/50"
+      >
         <div className="flex items-center px-4 py-2 gap-2">
           <button
             onClick={() => setScope("all")}
