@@ -21,6 +21,14 @@ jobs:
       - run: npx cap add android || true
       - run: npx cap sync android
 
+      - name: Generate app icons
+        run: |
+          mkdir -p assets
+          cp src-tauri/icons/icon.png assets/icon.png
+          cp src-tauri/icons/icon.png assets/icon-foreground.png
+          cp src-tauri/icons/icon.png assets/icon-background.png
+          npx -y @capacitor/assets generate --android --assetPath assets || true
+
       - name: Build APK
         working-directory: android
         run: ./gradlew assembleRelease
