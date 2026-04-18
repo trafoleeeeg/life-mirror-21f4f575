@@ -175,7 +175,7 @@ const Notifications = () => {
         description="Гибкое окно, свой ритм. Без спама и стрессовых триггеров."
       />
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4 max-w-2xl mx-auto">
         <Card className="ios-card p-5 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div>

@@ -223,7 +223,7 @@ const Ping = () => {
         description="30 секунд. Это формирует твоё зеркало точнее любых тестов."
       />
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4 max-w-2xl mx-auto">
         <Card className="ios-card p-6 space-y-6">
           <div className="text-center space-y-2">
             <div className="text-7xl leading-none">{moodEmoji}</div>
