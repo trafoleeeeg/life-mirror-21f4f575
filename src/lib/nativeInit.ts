@@ -1,18 +1,17 @@
 // Инициализация нативных плагинов Capacitor (Android/iOS).
-// • StatusBar НЕ overlay → webview сдвигается ниже системной шапки, контент не обрезается.
-// • Скрываем splash как только UI готов (без зависшего лого).
-// • Меняем цвет адресной строки/нав-бара под тёмную тему.
+// • StatusBar overlay=true → webview занимает всю высоту, мы сами управляем safe-area.
+//   Это даёт «edge-to-edge» внешний вид как на iOS, и контент НЕ обрезается,
+//   потому что AppShell использует env(safe-area-inset-top) для отступов.
+// • Прозрачный фон статус-бара, светлые иконки на тёмной теме.
 import { isCapacitorNative } from "./platform";
 
 export async function initNative() {
   if (!isCapacitorNative()) return;
   try {
     const { StatusBar, Style } = await import("@capacitor/status-bar");
-    // КРИТИЧНО: overlay=false — иначе системные часы/батарея перекрывают шапку приложения.
-    // На некоторых Android-устройствах overlay по умолчанию true.
-    await StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
-    await StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-    await StatusBar.setBackgroundColor({ color: "#000000" }).catch(() => {});
+    await StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+    await StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+    await StatusBar.setBackgroundColor({ color: "#00000000" }).catch(() => {});
     await StatusBar.show().catch(() => {});
   } catch (e) {
     console.warn("[native] StatusBar init failed:", e);

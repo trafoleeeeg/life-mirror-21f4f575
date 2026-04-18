@@ -167,8 +167,8 @@ export const SwipeNavigator = ({ tabs, currentPath, onOpenDrawer, children }: Pr
   }, [tabs, currentPath, navigate, onOpenDrawer]);
 
   return (
-    <div ref={wrapRef} className="contents">
-      <div ref={contentRef} className="contents-swipe-wrap flex-1 min-w-0 will-change-transform">
+    <div ref={wrapRef} className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
+      <div ref={contentRef} className="flex-1 min-w-0 will-change-transform flex flex-col">
         {children}
       </div>
     </div>
