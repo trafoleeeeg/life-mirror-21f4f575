@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Mirr",
+        "title": "Mirr v0.1.7",
         "width": 1280,
         "height": 800,
         "minWidth": 800,

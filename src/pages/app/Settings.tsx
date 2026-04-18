@@ -22,6 +22,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Bell, Download, LogOut, Trash2, User as UserIcon } from "lucide-react";
+import { UpdateSection } from "@/components/UpdateSection";
 
 type Tone = "soft" | "hard" | "socratic";
 type Lang = "ru" | "en";
@@ -220,6 +221,8 @@ const Settings = () => {
             </Button>
           </div>
         </Card>
+
+        <UpdateSection />
 
         <Card className="ios-card p-5 space-y-3">
           <h3 className="font-semibold">Аккаунт</h3>
