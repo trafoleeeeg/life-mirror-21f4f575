@@ -259,7 +259,7 @@ const Mirror = () => {
           collisionDetection={closestCenter}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
-          onDragCancel={() => setActiveId(null)}
+          onDragCancel={onDragCancel}
         >
           <SortableContext items={order as string[]} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-5">
