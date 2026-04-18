@@ -179,10 +179,10 @@ const Checkin = () => {
   };
 
   return (
-    <>
+    <div className="max-w-2xl mx-auto">
       <PageHeader title="Новый чек-ин" />
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4">
         {/* Mood */}
         <Card className="ios-card p-6 space-y-5">
           <div className="flex items-center justify-between">
@@ -291,7 +291,7 @@ const Checkin = () => {
           {saving ? "Сохраняю…" : "Сохранить чек-ин"}
         </Button>
       </div>
-    </>
+    </div>
   );
 };
 

@@ -130,10 +130,10 @@ const Settings = () => {
   };
 
   return (
-    <>
+    <div className="max-w-2xl mx-auto">
       <PageHeader eyebrow="управляешь зеркалом" title="Настройки" description="Приватность, AI и аккаунт." />
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4">
         {/* Профиль вынесен на отдельную страницу */}
         <Card className="ios-card p-5 flex items-center justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -263,10 +263,10 @@ const Settings = () => {
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
-          </AlertDialog>
+        </AlertDialog>
         </Card>
       </div>
-    </>
+    </div>
   );
 };
 

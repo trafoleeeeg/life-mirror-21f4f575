@@ -216,14 +216,14 @@ const Ping = () => {
   };
 
   return (
-    <>
+    <div className="max-w-2xl mx-auto">
       <PageHeader
         eyebrow="микро-чек"
         title="Как ты сейчас?"
         description="30 секунд. Это формирует твоё зеркало точнее любых тестов."
       />
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4">
         <Card className="ios-card p-6 space-y-6">
           <div className="text-center space-y-2">
             <div className="text-7xl leading-none">{moodEmoji}</div>
@@ -363,7 +363,7 @@ const Ping = () => {
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
