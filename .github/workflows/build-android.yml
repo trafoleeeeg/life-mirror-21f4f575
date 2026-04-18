@@ -30,11 +30,19 @@ jobs:
           cp src-tauri/icons/icon.png assets/icon-background.png
           npx -y @capacitor/assets generate --android --assetPath assets || true
 
-      - name: Build APK
+      - name: Build APK (debug, signed with debug key)
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
           name: mirr-android-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
+
+      - name: Attach APK to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
