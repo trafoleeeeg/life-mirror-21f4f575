@@ -16,7 +16,7 @@ jobs:
         with: { distribution: 'temurin', java-version: '17' }
       - uses: android-actions/setup-android@v3
 
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: npx cap add android || true
       - run: npx cap sync android
