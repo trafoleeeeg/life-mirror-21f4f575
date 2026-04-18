@@ -11,7 +11,7 @@ export interface UpdateInfo {
   notes: string | null;
 }
 
-const REPO = import.meta.env.VITE_GITHUB_REPO as string | undefined; // "owner/repo"
+const REPO = (import.meta.env.VITE_GITHUB_REPO as string | undefined) || "trafoleeeeg/life-mirror-21f4f575"; // "owner/repo"
 const CURRENT = (import.meta.env.VITE_APP_VERSION as string | undefined) || "0.0.0";
 
 // Семвер-сравнение: "1.2.10" > "1.2.9"
