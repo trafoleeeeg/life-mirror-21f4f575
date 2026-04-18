@@ -65,7 +65,12 @@ const Mirror = () => {
   });
   useEffect(() => { localStorage.setItem(ORDER_KEY, JSON.stringify(order)); }, [order]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // На мобиле: long-press 350мс активирует drag (не конфликтует со скроллом).
+  // На десктопе: обычный mouse drag по 6px.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
+  );
   const [activeId, setActiveId] = useState<SectionId | null>(null);
   const onDragStart = (e: DragStartEvent) => setActiveId(e.active.id as SectionId);
   const onDragEnd = (e: DragEndEvent) => {
