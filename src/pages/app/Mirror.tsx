@@ -29,7 +29,7 @@ import { seedDemoData } from "@/lib/demoData";
 import type { DateRange } from "react-day-picker";
 
 import {
-  DndContext, PointerSensor, useSensor, useSensors,
+  DndContext, PointerSensor, TouchSensor, MouseSensor, useSensor, useSensors,
   closestCenter, DragOverlay, type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
