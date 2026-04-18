@@ -100,31 +100,33 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          python3 - <<'PY'
+          cat > /tmp/sign.py <<'PYEOF'
           import re, pathlib, os
           p = pathlib.Path("android/app/build.gradle")
           g = p.read_text()
-          signing_block = f'''
-    signingConfigs {{
-        release {{
-            storeFile file("release.keystore")
-            storePassword "{os.environ["STORE_PASSWORD"]}"
-            keyAlias "{os.environ["KEY_ALIAS"]}"
-            keyPassword "{os.environ["KEY_PASSWORD"]}"
-        }}
-    }}
-'''
-          # вставим signingConfigs внутрь android { ... } сразу после открывающей скобки
-          g = re.sub(r"(android\s*\{)", r"\1" + signing_block, g, count=1)
-          # привяжем signingConfig к release buildType
+          sp = os.environ["STORE_PASSWORD"]
+          ka = os.environ["KEY_ALIAS"]
+          kp = os.environ["KEY_PASSWORD"]
+          signing_block = (
+              "\n    signingConfigs {\n"
+              "        release {\n"
+              "            storeFile file(\"release.keystore\")\n"
+              f"            storePassword \"{sp}\"\n"
+              f"            keyAlias \"{ka}\"\n"
+              f"            keyPassword \"{kp}\"\n"
+              "        }\n"
+              "    }\n"
+          )
+          g = re.sub(r"(android\s*\{)", lambda m: m.group(1) + signing_block, g, count=1)
           g = re.sub(
               r"(buildTypes\s*\{\s*release\s*\{)",
-              r"\1\n            signingConfig signingConfigs.release",
+              lambda m: m.group(1) + "\n            signingConfig signingConfigs.release",
               g, count=1,
           )
           p.write_text(g)
           print("gradle: release signing wired")
-          PY
+          PYEOF
+          python3 /tmp/sign.py
 
       - name: Build APK
         working-directory: android
