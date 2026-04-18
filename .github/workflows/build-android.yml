@@ -2,19 +2,37 @@ name: Build Android APK
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '17' }
       - uses: android-actions/setup-android@v3
+
+      - name: Compute version
+        id: ver
+        run: |
+          # versionCode = run_number (моноинкремент); versionName = 1.0.<run_number>
+          echo "code=${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "name=1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Inject version into web bundle
+        run: |
+          echo "VITE_APP_VERSION=${{ steps.ver.outputs.name }}" >> .env.production
 
       - run: npm install --no-audit --no-fund
       - run: npm run build
@@ -22,28 +40,38 @@ jobs:
       - run: npx cap add android
       - run: npx cap sync android
 
-      - name: Register mirr:// deep-link in AndroidManifest
+      - name: Patch AndroidManifest (deep-link) + versions
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
           python3 - <<'PY'
-          import re, pathlib
+          import re, pathlib, os
+          # 1) deep-link
           p = pathlib.Path("android/app/src/main/AndroidManifest.xml")
           x = p.read_text()
-          if "mirr" in x:
-            print("already patched"); raise SystemExit(0)
-          intent = '''
+          if "mirr" not in x:
+              intent = '''
                 <intent-filter android:autoVerify="false">
                     <action android:name="android.intent.action.VIEW" />
                     <category android:name="android.intent.category.DEFAULT" />
                     <category android:name="android.intent.category.BROWSABLE" />
                     <data android:scheme="mirr" android:host="callback" />
                 </intent-filter>
-          '''
-          x2 = re.sub(r"(</activity>)", intent + r"\n            \1", x, count=1)
-          p.write_text(x2)
-          print("patched")
+              '''
+              x = re.sub(r"(</activity>)", intent + r"\n            \1", x, count=1)
+              p.write_text(x)
+              print("manifest: patched")
+          # 2) versionCode / versionName в build.gradle
+          gradle = pathlib.Path("android/app/build.gradle")
+          g = gradle.read_text()
+          code = os.environ["VCODE"]
+          name = os.environ["VNAME"]
+          g = re.sub(r"versionCode\s+\d+", f"versionCode {code}", g, count=1)
+          g = re.sub(r'versionName\s+"[^"]+"', f'versionName "{name}"', g, count=1)
+          gradle.write_text(g)
+          print(f"gradle: versionCode={code} versionName={name}")
           PY
-          cat android/app/src/main/AndroidManifest.xml
+        env:
+          VCODE: ${{ steps.ver.outputs.code }}
+          VNAME: ${{ steps.ver.outputs.name }}
 
       - name: Generate app icons
         run: |
@@ -53,19 +81,86 @@ jobs:
           cp src-tauri/icons/icon.png assets/icon-background.png
           npx -y @capacitor/assets generate --android --assetPath assets || true
 
-      - name: Build APK (debug, signed with debug key)
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 not set — APK будет debug-подписан (НЕ обновится поверх release-сборки)"
+            echo "HAS_KEYSTORE=false" >> $GITHUB_ENV
+          else
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+            echo "HAS_KEYSTORE=true" >> $GITHUB_ENV
+          fi
+
+      - name: Configure release signing
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import re, pathlib, os
+          p = pathlib.Path("android/app/build.gradle")
+          g = p.read_text()
+          signing_block = f'''
+    signingConfigs {{
+        release {{
+            storeFile file("release.keystore")
+            storePassword "{os.environ["STORE_PASSWORD"]}"
+            keyAlias "{os.environ["KEY_ALIAS"]}"
+            keyPassword "{os.environ["KEY_PASSWORD"]}"
+        }}
+    }}
+'''
+          # вставим signingConfigs внутрь android { ... } сразу после открывающей скобки
+          g = re.sub(r"(android\s*\{)", r"\1" + signing_block, g, count=1)
+          # привяжем signingConfig к release buildType
+          g = re.sub(
+              r"(buildTypes\s*\{\s*release\s*\{)",
+              r"\1\n            signingConfig signingConfigs.release",
+              g, count=1,
+          )
+          p.write_text(g)
+          print("gradle: release signing wired")
+          PY
+
+      - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: |
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
+
+      - name: Locate APK
+        id: apk
+        run: |
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            SRC=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
+          else
+            SRC=$(ls android/app/build/outputs/apk/debug/*.apk | head -n1)
+          fi
+          DEST="mirr-${{ steps.ver.outputs.name }}.apk"
+          cp "$SRC" "$DEST"
+          echo "path=$DEST" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
         with:
           name: mirr-android-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.apk.outputs.path }}
 
-      - name: Attach APK to release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/debug/*.apk
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          body: |
+            Автоматическая сборка из коммита ${{ github.sha }}.
+            Версия: ${{ steps.ver.outputs.name }} (code ${{ steps.ver.outputs.code }})
+          files: ${{ steps.apk.outputs.path }}
+          make_latest: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
