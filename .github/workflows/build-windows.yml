@@ -16,7 +16,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: 'src-tauri -> target' }
 
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - name: Install Tauri CLI
         run: npm i -D @tauri-apps/cli@^2
 
