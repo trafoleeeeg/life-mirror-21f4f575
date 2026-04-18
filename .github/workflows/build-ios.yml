@@ -18,6 +18,12 @@ jobs:
       - run: npx cap add ios || true
       - run: npx cap sync ios
 
+      - name: Generate app icons
+        run: |
+          mkdir -p assets
+          cp src-tauri/icons/icon.png assets/icon.png
+          npx -y @capacitor/assets generate --ios --assetPath assets || true
+
       - name: Build unsigned .app (no Apple Developer account required)
         working-directory: ios/App
         run: |
