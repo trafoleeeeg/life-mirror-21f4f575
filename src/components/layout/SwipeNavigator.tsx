@@ -76,6 +76,8 @@ export const SwipeNavigator = ({ tabs, currentPath, onOpenDrawer, children }: Pr
       if (e.touches.length !== 1) { start.current = null; return; }
       const target = e.target as HTMLElement;
       if (target.closest(SKIP_SELECTOR)) { start.current = null; return; }
+      // Если активен DnD (dnd-kit ставит класс на body) — не вмешиваемся
+      if (document.body.classList.contains("dnd-dragging")) { start.current = null; return; }
       const t = e.touches[0];
       start.current = {
         x: t.clientX,
