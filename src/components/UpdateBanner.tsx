@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, RefreshCw, X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Download, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -11,6 +11,10 @@ import {
   type UpdaterStatus,
 } from "@/lib/updater";
 
+/**
+ * Тихий баннер: видим только когда реально доступно обновление.
+ * Проверка делается фоном раз в час; статусы checking/uptodate/error не показываем.
+ */
 export const UpdateBanner = () => {
   const [status, setStatus] = useState<UpdaterStatus>({ kind: "idle" });
   const [installing, setInstalling] = useState(false);
@@ -49,52 +53,19 @@ export const UpdateBanner = () => {
   };
 
   if (!isTauri() || dismissed) return null;
-  if (status.kind === "idle") return null;
+  if (status.kind !== "available") return null;
 
-  // Debug-баннер: показываем все состояния, чтобы понять что происходит
   return (
     <div className="fixed bottom-4 right-4 z-50 w-80 rounded-lg border border-border bg-card p-4 shadow-lg">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          {status.kind === "checking" && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-              <h3 className="font-semibold text-sm">Проверка обновлений…</h3>
-            </div>
-          )}
-          {status.kind === "uptodate" && (
-            <>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                <h3 className="font-semibold text-sm">У вас последняя версия</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Текущая: {status.currentVersion ?? "—"}
-              </p>
-            </>
-          )}
-          {status.kind === "error" && (
-            <>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <h3 className="font-semibold text-sm">Ошибка апдейтера</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 break-words">
-                {status.message}
-              </p>
-            </>
-          )}
-          {status.kind === "available" && (
-            <>
-              <div className="flex items-center gap-2">
-                <Download className="h-4 w-4 text-primary" />
-                <h3 className="font-semibold text-sm">✨ Доступно обновление</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Версия {status.info.version} готова к установке
-              </p>
-            </>
-          )}
+          <div className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-sm">Доступно обновление</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Версия {status.info.version} готова к установке
+          </p>
         </div>
         {!installing && (
           <button
@@ -114,35 +85,21 @@ export const UpdateBanner = () => {
         </div>
       )}
 
-      {status.kind === "available" && (
-        <Button
-          onClick={handleInstall}
-          disabled={installing}
-          size="sm"
-          className="mt-3 w-full"
-        >
-          {installing ? (
-            <>
-              <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
-              Устанавливаем...
-            </>
-          ) : (
-            "Обновить и перезапустить"
-          )}
-        </Button>
-      )}
-
-      {(status.kind === "error" || status.kind === "uptodate") && (
-        <Button
-          onClick={() => checkForUpdate()}
-          variant="outline"
-          size="sm"
-          className="mt-3 w-full"
-        >
-          <RefreshCw className="h-3 w-3 mr-2" />
-          Проверить ещё раз
-        </Button>
-      )}
+      <Button
+        onClick={handleInstall}
+        disabled={installing}
+        size="sm"
+        className="mt-3 w-full"
+      >
+        {installing ? (
+          <>
+            <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+            Устанавливаем...
+          </>
+        ) : (
+          "Обновить и перезапустить"
+        )}
+      </Button>
     </div>
   );
 };
