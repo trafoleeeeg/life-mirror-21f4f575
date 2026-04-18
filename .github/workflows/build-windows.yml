@@ -1,0 +1,31 @@
+name: Build Windows (Tauri)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: 'src-tauri -> target' }
+
+      - run: npm ci
+      - name: Install Tauri CLI
+        run: npm i -D @tauri-apps/cli@^2
+
+      - name: Build MSI + NSIS
+        run: npx tauri build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mirr-windows
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
