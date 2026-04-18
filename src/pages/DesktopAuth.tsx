@@ -26,10 +26,19 @@ const DesktopAuth = () => {
     const issueCodeAndRedirect = async (accessToken: string, refreshToken: string) => {
       setStep("issuing");
       try {
-        const { data, error } = await supabase.functions.invoke("desktop-auth-exchange?action=create", {
-          body: { access_token: accessToken, refresh_token: refreshToken },
+        // invoke() не поддерживает query string в имени, поэтому fetch напрямую
+        const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/desktop-auth-exchange?action=create`;
+        const res = await fetch(fnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
         });
-        if (error) throw error;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Не удалось получить код");
         if (!data?.code) throw new Error("Сервер не вернул код");
         if (cancelled) return;
         setStep("redirecting");
