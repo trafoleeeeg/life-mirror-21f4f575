@@ -127,7 +127,7 @@ export const AppShell = () => {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 inset-x-0 z-30 glass pt-safe no-select">
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 bg-background border-b border-border/60 pt-safe no-select">
         <div className="flex items-center justify-between px-2 h-12">
           <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
             <SheetTrigger asChild>
@@ -247,7 +247,7 @@ export const AppShell = () => {
 
       {/* Mobile bottom tab bar (iOS) */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-30 glass pb-safe no-select"
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border/60 pb-safe no-select"
         aria-label="Главная навигация"
       >
         <div className="grid grid-cols-4 px-1 pt-1.5">
