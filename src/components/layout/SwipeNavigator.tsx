@@ -42,9 +42,12 @@ export const SwipeNavigator = ({ tabs, currentPath, onOpenDrawer, children }: Pr
 
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) { start.current = null; return; }
-      // не перехватываем, если палец опустился на интерактивный/скроллящийся элемент
       const target = e.target as HTMLElement;
-      if (target.closest("[data-no-swipe]")) { start.current = null; return; }
+      // Не перехватываем на интерактивных / скроллящихся / чувствительных элементах
+      if (
+        target.closest("[data-no-swipe]") ||
+        target.closest("input, textarea, select, [contenteditable='true'], canvas, svg, .recharts-wrapper, [role='slider'], [role='dialog']")
+      ) { start.current = null; return; }
       const t = e.touches[0];
       start.current = {
         x: t.clientX,
